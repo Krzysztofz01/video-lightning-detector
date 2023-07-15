@@ -22,7 +22,7 @@ func ColorToRgba(c color.Color) color.RGBA {
 func GetGrayscaleBasedBrightness(c color.Color) float64 {
 	rgba := ColorToRgba(c)
 
-	return (float64(rgba.R) * 0.299) + (float64(rgba.G) * 0.587) + (float64(rgba.B) * 0.114)
+	return ((float64(rgba.R) * 0.299) + (float64(rgba.G) * 0.587) + (float64(rgba.B) * 0.114)) / 255.0
 }
 
 func GetColorDifference(a, b color.Color) float64 {
