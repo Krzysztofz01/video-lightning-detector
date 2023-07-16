@@ -1,5 +1,7 @@
 # video-lightning-detector
 
+**The project is in the development stage. It still requires a lot of optimization and fine-tuning. It also does not work fully automatically yet.**
+
 This project is a CLI tool that allows to analyse a video recording in order to find frames containing lightnings and to export them as images. When iterating through the frames of the recording, the frames are analysed according to two criteria: the brightness of the frame and the difference of the current frame in relation to the previous frame. On the basis of these criteria and user provided threshold values, the utility decides whether a given frame captured a lightning bolt. It is also possible to export a report in CSV format which shows the parameter data for all frames, making it easier to select the appropriate brightness and frame difference thresholds. 
 
 # Requirements and installation
@@ -31,5 +33,7 @@ Flags:
   -o, --output-directory-path string   Output directory to store detected frames.
   -f, --skip-frames-export             Value indicating if the detected frams should not be exported.
   -r, --skip-report-export             Value indicating if the frames statistics report should not be exported.
+  -t, --skip-threshold-suggestion      Value indicating if the thresholds suggestion shoul not be calculated.
   -v, --verbose                        Enable verbose logging.
+
 ```
