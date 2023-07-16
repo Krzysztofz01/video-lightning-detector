@@ -119,9 +119,9 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) ([]*Fr
 		}
 	}
 
-	if !detector.options.SkipRaportExport {
-		if err := detector.exportRaport(frames, outputDirectoryPath); err != nil {
-			return nil, fmt.Errorf("detector: failed to generate frames raport: %w", err)
+	if !detector.options.SkipReportExport {
+		if err := detector.exportReport(frames, outputDirectoryPath); err != nil {
+			return nil, fmt.Errorf("detector: failed to generate frames report: %w", err)
 		}
 	}
 
@@ -160,32 +160,32 @@ func (detector *detector) handleExportFrame(frame *Frame, frameImage *image.RGBA
 	return nil
 }
 
-func (detector *detector) exportRaport(frames []*Frame, outputDirectoryPath string) error {
+func (detector *detector) exportReport(frames []*Frame, outputDirectoryPath string) error {
 	exportCsvPath := filepath.Join(outputDirectoryPath, "frames.csv")
-	logrus.Debugln("Generating the frames raport.")
+	logrus.Debugln("Generating the frames report.")
 
 	csvFile, err := CreateFileWithTree(exportCsvPath)
 	if err != nil {
-		return fmt.Errorf("detector: failed to create the frames raport file: %w", err)
+		return fmt.Errorf("detector: failed to create the frames report file: %w", err)
 	}
 
 	csvWriter := csv.NewWriter(csvFile)
 	if err := csvWriter.Write([]string{"Frame", "Brightness", "Difference"}); err != nil {
-		return fmt.Errorf("detector: failed to write the header to the frames raport file: %w", err)
+		return fmt.Errorf("detector: failed to write the header to the frames report file: %w", err)
 	}
 
 	for _, frame := range frames {
 		if err := csvWriter.Write(frame.ToBuffer()); err != nil {
-			return fmt.Errorf("detector: failed to write the frame to the frames raport file: %w", err)
+			return fmt.Errorf("detector: failed to write the frame to the frames report file: %w", err)
 		}
 	}
 
 	csvWriter.Flush()
 	if err := csvFile.Close(); err != nil {
-		return fmt.Errorf("detector: failed to close the frames raport file: %w", err)
+		return fmt.Errorf("detector: failed to close the frames report file: %w", err)
 	}
 
-	logrus.Debugf("Frames raport generated. Location: %s", exportCsvPath)
+	logrus.Debugf("Frames report generated. Location: %s", exportCsvPath)
 	return nil
 }
 
@@ -193,7 +193,7 @@ type DetectorOptions struct {
 	FrameDifferenceThreshold float64
 	FrameBrightnessThreshold float64
 	SkipFramesExport         bool
-	SkipRaportExport         bool
+	SkipReportExport         bool
 }
 
 func (options *DetectorOptions) AreValid() (bool, string) {
@@ -213,6 +213,6 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		FrameDifferenceThreshold: 0,
 		FrameBrightnessThreshold: 0,
 		SkipFramesExport:         false,
-		SkipRaportExport:         false,
+		SkipReportExport:         false,
 	}
 }

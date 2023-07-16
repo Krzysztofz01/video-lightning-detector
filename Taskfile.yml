@@ -15,7 +15,7 @@ tasks:
       - go test ./...
 
   test:cover:
-    desc: Run tests for all packages and generate a coverage raport.
+    desc: Run tests for all packages and generate a coverage report.
     vars:
       COVERAGE: coverage.out
     cmds:

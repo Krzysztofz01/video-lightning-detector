@@ -55,10 +55,10 @@ func init() {
 		"Value indicating if the detected frams should not be exported.")
 
 	rootCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.SkipRaportExport,
-		"skip-raport-export", "r",
-		DetectorOptions.SkipRaportExport,
-		"Value indicating if the frames statistics raport should not be exported.")
+		&DetectorOptions.SkipReportExport,
+		"skip-report-export", "r",
+		DetectorOptions.SkipReportExport,
+		"Value indicating if the frames statistics report should not be exported.")
 
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.SetOutput(os.Stdout)
