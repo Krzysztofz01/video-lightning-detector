@@ -7,7 +7,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -107,6 +106,10 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) ([]*Fr
 
 	video.SetFrameBuffer(frameCurrent.Pix)
 
+	if !detector.options.SkipThresholdSuggestion {
+		detector.logSuggestedThresholds(frames)
+	}
+
 	if !detector.options.SkipFramesExport {
 		for _, frame := range frames {
 			if !video.Read() {
@@ -143,7 +146,7 @@ func (detector *detector) handleExportFrame(frame *Frame, frameImage *image.RGBA
 	logrus.Debugln("Performing frame export.")
 
 	exportFramePath := filepath.Join(outputDirectoryPath, fmt.Sprintf("frame-%d.png", frame.OrdinalNumber))
-	imageFile, err := os.Create(exportFramePath)
+	imageFile, err := CreateFileWithTree(exportFramePath)
 	if err != nil {
 		return fmt.Errorf("detector: failed to create the export frame image file: %w", err)
 	}
@@ -189,11 +192,32 @@ func (detector *detector) exportReport(frames []*Frame, outputDirectoryPath stri
 	return nil
 }
 
+func (detector *detector) logSuggestedThresholds(frames []*Frame) {
+	var (
+		brightness float64 = 0.0
+		difference float64 = 0.0
+	)
+
+	for _, frame := range frames {
+		if frame.GetBrightness() > brightness {
+			brightness = frame.GetBrightness()
+		}
+
+		if frame.GetDifference() > difference {
+			difference = frame.GetDifference()
+		}
+	}
+
+	logrus.Infof("Suggsted brightness threshold around: %f", brightness)
+	logrus.Infof("Sugested difference threshold around: %f", difference)
+}
+
 type DetectorOptions struct {
 	FrameDifferenceThreshold float64
 	FrameBrightnessThreshold float64
 	SkipFramesExport         bool
 	SkipReportExport         bool
+	SkipThresholdSuggestion  bool
 }
 
 func (options *DetectorOptions) AreValid() (bool, string) {
@@ -214,5 +238,6 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		FrameBrightnessThreshold: 0,
 		SkipFramesExport:         false,
 		SkipReportExport:         false,
+		SkipThresholdSuggestion:  false,
 	}
 }

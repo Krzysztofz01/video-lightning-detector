@@ -60,6 +60,12 @@ func init() {
 		DetectorOptions.SkipReportExport,
 		"Value indicating if the frames statistics report should not be exported.")
 
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.SkipThresholdSuggestion,
+		"skip-threshold-suggestion", "t",
+		DetectorOptions.SkipThresholdSuggestion,
+		"Value indicating if the thresholds suggestion shoul not be calculated.")
+
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.SetOutput(os.Stdout)
 	logrus.SetFormatter(&nestedFormatter.Formatter{
