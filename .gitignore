@@ -28,3 +28,6 @@ bin
 *.jpeg
 *.png
 *.mp4
+
+# Coverage file
+coverage.out

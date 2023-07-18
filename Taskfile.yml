@@ -1,0 +1,23 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the video-ligtning-detector for the current system and architecture with debug symbols included.
+    cmds:
+      - cmd: go build -v -o bin/video-lightning-detector.exe .
+        platforms: [ windows ]
+      - cmd: go build -v -o bin/video-lightning-detector .
+        platforms: [ linux, darwin ]
+  
+  test:
+    desc: Run tests for all packages.
+    cmds:
+      - go test ./...
+
+  test:cover:
+    desc: Run tests for all packages and generate a coverage report.
+    vars:
+      COVERAGE: coverage.out
+    cmds:
+      - go test -coverprofile {{.COVERAGE}} ./...
+      - go tool cover -html {{.COVERAGE}}
