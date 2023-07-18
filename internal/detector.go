@@ -15,6 +15,7 @@ import (
 	"github.com/Krzysztofz01/pimit"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
+	"golang.org/x/image/draw"
 )
 
 type Detector interface {
@@ -30,6 +31,8 @@ func CreateDetector(options DetectorOptions) (Detector, error) {
 		return nil, fmt.Errorf("detector: invalid options %s", msg)
 	}
 
+	logrus.Debugf("Detector created with options: %+v", options)
+
 	return &detector{
 		options: options,
 	}, nil
@@ -44,20 +47,30 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) ([]*Fr
 		return nil, fmt.Errorf("detector: failed to open the video file for the detection iteration: %w", err)
 	}
 
-	framePrevious := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
-	frameCurrent := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
+	targetWidth := int(float64(video.Width()) * detector.options.FrameScalingFactor)
+	targetHeight := int(float64(video.Height()) * detector.options.FrameScalingFactor)
+
+	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
+	framePrevious := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 
 	frames := make([]*Frame, 0, video.Frames())
 
-	video.SetFrameBuffer(frameCurrent.Pix)
+	video.SetFrameBuffer(frameCurrentBuffer.Pix)
 
 	frameNumber := 1
 	frameCount := video.Frames()
-	frameSize := float64(video.Width() * video.Height())
+	frameSize := float64(targetWidth * targetHeight)
 
 	for video.Read() {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
+
+		if detector.options.FrameScalingFactor == 1.0 {
+			copy(frameCurrent.Pix, frameCurrentBuffer.Pix)
+		} else {
+			draw.NearestNeighbor.Scale(frameCurrent, frameCurrent.Rect, frameCurrentBuffer, frameCurrentBuffer.Bounds(), draw.Over, nil)
+		}
 
 		frame := NewFrame(frameNumber)
 
@@ -218,6 +231,7 @@ type DetectorOptions struct {
 	SkipFramesExport         bool
 	SkipReportExport         bool
 	SkipThresholdSuggestion  bool
+	FrameScalingFactor       float64
 }
 
 func (options *DetectorOptions) AreValid() (bool, string) {
@@ -229,15 +243,20 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 		return false, "the frame difference threshold must be between zero and one"
 	}
 
+	if options.FrameScalingFactor < 0.0 || options.FrameScalingFactor > 1.0 {
+		return false, "the scaling factor must be between zero and one"
+	}
+
 	return true, ""
 }
 
 func GetDefaultDetectorOptions() DetectorOptions {
 	return DetectorOptions{
-		FrameDifferenceThreshold: 0,
-		FrameBrightnessThreshold: 0,
+		FrameDifferenceThreshold: 0.0,
+		FrameBrightnessThreshold: 0.0,
 		SkipFramesExport:         false,
 		SkipReportExport:         false,
 		SkipThresholdSuggestion:  false,
+		FrameScalingFactor:       1.0,
 	}
 }
