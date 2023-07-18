@@ -21,6 +21,7 @@ task build
 ```
 
 # Usage
+All available flags/commands:
 ```sh
 Usage:
   video-ligtning-detector [flags]
@@ -31,9 +32,19 @@ Flags:
   -h, --help                           help for video-ligtning-detector
   -i, --input-video-path string        Input video to perform the lightning detection.
   -o, --output-directory-path string   Output directory to store detected frames.
+  -s, --scaling-factor float           The frame scaling factor used to downscale frames for better performance. (default 1)
   -f, --skip-frames-export             Value indicating if the detected frams should not be exported.
   -r, --skip-report-export             Value indicating if the frames statistics report should not be exported.
   -t, --skip-threshold-suggestion      Value indicating if the thresholds suggestion shoul not be calculated.
   -v, --verbose                        Enable verbose logging.
+```
 
+Workflow example:
+```sh
+# Running with flags which, will specify to only generate a .CSV report to analyze the values and select the appropriate thresholds. Scaling is also applied to make the whole operation faster
+video-lightning-detector -i ./path/to/video.mp4 -o ./output/directory/ -f -s 0.5
+
+
+# We run the program now without the flag that skips the export of frames. We set the thresholds. We continue to use the scaling. We do not export the .CSV report again.
+video-lightning-detector -i ./path/to/video.mp4 -o ./output/directory/ -r -s 0.5 -b 0.002 -d 0.052
 ```
