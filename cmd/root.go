@@ -66,6 +66,12 @@ func init() {
 		DetectorOptions.SkipThresholdSuggestion,
 		"Value indicating if the thresholds suggestion shoul not be calculated.")
 
+	rootCmd.PersistentFlags().Float64VarP(
+		&DetectorOptions.FrameScalingFactor,
+		"scaling-factor", "s",
+		DetectorOptions.FrameScalingFactor,
+		"The frame scaling factor used to downscale frames for better performance.")
+
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.SetOutput(os.Stdout)
 	logrus.SetFormatter(&nestedFormatter.Formatter{
