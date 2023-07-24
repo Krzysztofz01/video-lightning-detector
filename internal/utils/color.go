@@ -5,6 +5,20 @@ import (
 	"math"
 )
 
+var linearRgbComponentLookup [256]float64
+
+func init() {
+	for x := 0; x < len(linearRgbComponentLookup); x += 1 {
+		xNorm := float64(x) / 255.0
+
+		if xNorm <= 0.04045 {
+			linearRgbComponentLookup[x] = xNorm / 12.92
+		} else {
+			linearRgbComponentLookup[x] = math.Pow((xNorm+0.055)/1.055, 2.4)
+		}
+	}
+}
+
 // Convert the provided color represented by the color.Color interface to the color.RGBA struct instance.
 func ColorToRgba(c color.Color) color.RGBA {
 	if rgba, ok := c.(color.RGBA); ok {
@@ -21,7 +35,7 @@ func ColorToRgba(c color.Color) color.RGBA {
 }
 
 // Convert a color to grayscale represented as a value from zero to one.
-func GetColorGrayscale(c color.Color) float64 {
+func ColorToGrayscale(c color.Color) float64 {
 	rgba := ColorToRgba(c)
 	return ((float64(rgba.R) * 0.299) + (float64(rgba.G) * 0.587) + (float64(rgba.B) * 0.114)) / 255.0
 }
@@ -29,8 +43,16 @@ func GetColorGrayscale(c color.Color) float64 {
 // Calculate the brightness of the color represented as a value from zero to one.
 func GetColorBrightness(c color.Color) float64 {
 	rgba := ColorToRgba(c)
+	lR := linearRgbComponentLookup[rgba.R]
+	lG := linearRgbComponentLookup[rgba.G]
+	lB := linearRgbComponentLookup[rgba.B]
 
-	return ((float64(rgba.R) * 0.299) + (float64(rgba.G) * 0.587) + (float64(rgba.B) * 0.114)) / 255.0
+	luminance := 0.2126*lR + 0.7152*lG + 0.0722*lB
+	if luminance <= 0.008856 {
+		return (luminance * 903.3) / 100.0
+	} else {
+		return (math.Pow(luminance, 1.0/3.0)*116.0 - 16.0) / 100.0
+	}
 }
 
 // Calculate the difference between two colors represented as a value from zero to one using the mean of RGB components difference.
@@ -47,7 +69,7 @@ func GetColorDifference(a, b color.Color) float64 {
 
 // Perform a binary threshold on a given color with specfied cutoff threshold and returna black or white color.
 func BinaryThreshold(c color.Color, t float64) color.Color {
-	grayscale := GetColorGrayscale(c)
+	grayscale := ColorToGrayscale(c)
 
 	if grayscale < t {
 		return color.Black
