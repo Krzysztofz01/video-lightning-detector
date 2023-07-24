@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,7 +22,7 @@ var (
 	InputVideoPath      string
 	OutputDirectoryPath string
 	VerboseMode         bool
-	DetectorOptions     internal.DetectorOptions = internal.GetDefaultDetectorOptions()
+	DetectorOptions     detector.DetectorOptions = detector.GetDefaultDetectorOptions()
 )
 
 func init() {
@@ -37,15 +37,21 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&VerboseMode, "verbose", "v", false, "Enable verbose logging.")
 
 	rootCmd.PersistentFlags().Float64VarP(
-		&DetectorOptions.FrameDifferenceThreshold,
-		"difference-threshold", "d",
-		DetectorOptions.FrameDifferenceThreshold,
-		"The threshold used to determine the difference between two neighbouring frames.")
+		&DetectorOptions.ColorDifferenceDetectionThreshold,
+		"color-difference-threshold", "c",
+		DetectorOptions.ColorDifferenceDetectionThreshold,
+		"The threshold used to determine the difference between two neighbouring frames on the color basis.")
 
 	rootCmd.PersistentFlags().Float64VarP(
-		&DetectorOptions.FrameBrightnessThreshold,
+		&DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
+		"binary-threshold-difference-threshold", "t",
+		DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
+		"The threshold used to determine the difference between two neighbouring frames after the binary thresholding process.")
+
+	rootCmd.PersistentFlags().Float64VarP(
+		&DetectorOptions.BrightnessDetectionThreshold,
 		"brightness-threshold", "b",
-		DetectorOptions.FrameBrightnessThreshold,
+		DetectorOptions.BrightnessDetectionThreshold,
 		"The threshold used to determine the brightness of the frame.")
 
 	rootCmd.PersistentFlags().BoolVarP(
@@ -55,16 +61,16 @@ func init() {
 		"Value indicating if the detected frams should not be exported.")
 
 	rootCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.SkipReportExport,
-		"skip-report-export", "r",
-		DetectorOptions.SkipReportExport,
-		"Value indicating if the frames statistics report should not be exported.")
+		&DetectorOptions.ExportCsvReport,
+		"export-csv-report", "e",
+		DetectorOptions.ExportCsvReport,
+		"Value indicating if the frames statistics report in CSV format should be exported.")
 
 	rootCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.SkipThresholdSuggestion,
-		"skip-threshold-suggestion", "t",
-		DetectorOptions.SkipThresholdSuggestion,
-		"Value indicating if the thresholds suggestion shoul not be calculated.")
+		&DetectorOptions.ExportJsonReport,
+		"export-json-report", "j",
+		DetectorOptions.ExportJsonReport,
+		"Value indicating if the frames statistics report in JSON format should be exported.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.FrameScalingFactor,
@@ -99,13 +105,12 @@ func run(cmd *cobra.Command, args []string) error {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	detector, err := internal.CreateDetector(DetectorOptions)
+	detectorInstance, err := detector.CreateDetector(DetectorOptions)
 	if err != nil {
 		return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
 	}
 
-	_, err = detector.Run(InputVideoPath, OutputDirectoryPath)
-	if err != nil {
+	if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath); err != nil {
 		logrus.Error(err)
 		return fmt.Errorf("cmd: detector run failed: %w", err)
 	}
