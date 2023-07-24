@@ -64,7 +64,8 @@ func calculateFrameBrightness(currentFrame image.Image) float64 {
 		brightness.Add(utils.GetColorBrightness(color))
 	})
 
-	return brightness.Load()
+	frameSize := currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
+	return brightness.Load() / float64(frameSize)
 }
 
 func calculateFramesColorDifference(currentFrame, previousFrame image.Image) float64 {
