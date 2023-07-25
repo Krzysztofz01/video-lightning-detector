@@ -67,6 +67,26 @@ func (frames *FramesCollection) Get(frameNumber int) (*Frame, error) {
 	}
 }
 
+// Get all frames sorted by the frame ordinal number.
+// TODO: Add tests
+func (frames *FramesCollection) GetAll() []*Frame {
+	frames.mu.RLock()
+	defer frames.mu.RUnlock()
+
+	values := make([]*Frame, len(frames.Frames))
+	for index := 0; index < len(frames.Frames); index += 1 {
+		frameNumber := index + 1
+		frame, ok := frames.Frames[frameNumber]
+		if !ok {
+			panic("frame: missing frame spotted during frames iteration")
+		}
+
+		values[index] = frame
+	}
+
+	return values
+}
+
 // Calculate the descriptive statistics values for the given frames collection.
 func (frames *FramesCollection) CalculateStatistics() FramesStatistics {
 	frames.mu.RLock()
@@ -99,13 +119,12 @@ func (frames *FramesCollection) CalculateStatistics() FramesStatistics {
 
 // Write the JSON format frames report to the provided writer which can be a file reference.
 func (frames *FramesCollection) ExportJsonReport(file io.Writer) error {
-	frames.mu.RLock()
-	defer frames.mu.RUnlock()
+	framesSlice := frames.GetAll()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "    ")
 
-	if err := encoder.Encode(frames.Frames); err != nil {
+	if err := encoder.Encode(framesSlice); err != nil {
 		return fmt.Errorf("frame: failed to encode the frames collection to json report file: %w", err)
 	}
 
@@ -114,15 +133,14 @@ func (frames *FramesCollection) ExportJsonReport(file io.Writer) error {
 
 // Write the CSV format frames report to the provided writer which can be a file reference.
 func (frames *FramesCollection) ExportCsvReport(file io.Writer) error {
-	frames.mu.RLock()
-	defer frames.mu.RUnlock()
+	framesSlice := frames.GetAll()
 
 	csvWriter := csv.NewWriter(file)
 	if err := csvWriter.Write([]string{"Frame", "Brightness", "ColorDifference", "BinaryThresholdDifference"}); err != nil {
 		return fmt.Errorf("frame: failed to write the header to the frames report file: %w", err)
 	}
 
-	for _, frame := range frames.Frames {
+	for _, frame := range framesSlice {
 		if err := csvWriter.Write(frame.ToBuffer()); err != nil {
 			return fmt.Errorf("frame: failed to write the frame to the frames report file: %w", err)
 		}
