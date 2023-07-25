@@ -16,8 +16,8 @@ func TestShouldCreateNewFirstFrame(t *testing.T) {
 
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)
-	assert.Equal(t, 1.0, frame.ColorDifference)
-	assert.Equal(t, 1.0, frame.BinaryThresholdDifference)
+	assert.Equal(t, 0.0, frame.ColorDifference)
+	assert.Equal(t, 0.0, frame.BinaryThresholdDifference)
 }
 
 func TestShouldCreateNewFrameWithDifferentNeighbour(t *testing.T) {

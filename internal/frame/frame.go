@@ -37,7 +37,7 @@ func CreateNewFrame(currentFrame, previousFrame image.Image, ordinalNumber int) 
 	go func() {
 		defer wg.Done()
 		if ordinalNumber == 1 {
-			frame.ColorDifference = 1.0
+			frame.ColorDifference = 0.0
 			return
 		}
 
@@ -47,7 +47,7 @@ func CreateNewFrame(currentFrame, previousFrame image.Image, ordinalNumber int) 
 	go func() {
 		defer wg.Done()
 		if ordinalNumber == 1 {
-			frame.BinaryThresholdDifference = 1.0
+			frame.BinaryThresholdDifference = 0.0
 			return
 		}
 
