@@ -21,7 +21,7 @@ type FramesCollection struct {
 type FramesStatistics struct {
 	BrightnessMean                             float64
 	BrightnessStandardDeviation                float64
-	BrigttnessMax                              float64
+	BrightnessMax                              float64
 	ColorDifferenceMean                        float64
 	ColorDifferenceStandardDeviation           float64
 	ColorDifferenceMax                         float64
@@ -73,24 +73,27 @@ func (frames *FramesCollection) CalculateStatistics() FramesStatistics {
 	defer frames.mu.RUnlock()
 
 	var (
-		framesBrigtness                 []float64 = make([]float64, len(frames.Frames))
-		framesColorDifference           []float64 = make([]float64, len(frames.Frames))
-		framesBinaryThresholdDifference []float64 = make([]float64, len(frames.Frames))
+		framesBrightness                []float64 = make([]float64, 0, len(frames.Frames))
+		framesColorDifference           []float64 = make([]float64, 0, len(frames.Frames))
+		framesBinaryThresholdDifference []float64 = make([]float64, 0, len(frames.Frames))
 	)
 
-	for index, frame := range frames.Frames {
-		framesBrigtness[index] = frame.Brightness
-		framesColorDifference[index] = frame.ColorDifference
-		framesBinaryThresholdDifference[index] = frame.BinaryThresholdDifference
+	for _, frame := range frames.Frames {
+		framesBrightness = append(framesBrightness, frame.Brightness)
+		framesColorDifference = append(framesColorDifference, frame.ColorDifference)
+		framesBinaryThresholdDifference = append(framesBinaryThresholdDifference, frame.BinaryThresholdDifference)
 	}
 
 	return FramesStatistics{
-		BrightnessMean:                             utils.Mean(framesBrigtness),
-		BrightnessStandardDeviation:                utils.StandardDeviation(framesBrigtness),
+		BrightnessMean:                             utils.Mean(framesBrightness),
+		BrightnessStandardDeviation:                utils.StandardDeviation(framesBrightness),
+		BrightnessMax:                              utils.Max(framesBrightness),
 		ColorDifferenceMean:                        utils.Mean(framesColorDifference),
 		ColorDifferenceStandardDeviation:           utils.StandardDeviation(framesColorDifference),
+		ColorDifferenceMax:                         utils.Max(framesColorDifference),
 		BinaryThresholdDifferenceMean:              utils.Mean(framesBinaryThresholdDifference),
 		BinaryThresholdDifferenceStandardDeviation: utils.StandardDeviation(framesBinaryThresholdDifference),
+		BinaryThresholdDifferenceMax:               utils.Max(framesBinaryThresholdDifference),
 	}
 }
 
