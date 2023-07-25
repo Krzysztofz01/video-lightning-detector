@@ -75,7 +75,8 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 		copy(framePrevious.Pix, frameCurrent.Pix)
 	}
 
-	// statistics := frames.CalculateStatistics()
+	statistics := frames.CalculateStatistics()
+	handleStatisctisLoging(statistics)
 
 	video.Close()
 	video, err = vidio.NewVideo(inputVideoPath)
@@ -218,4 +219,16 @@ func frameMeetThresholds(frame *frame.Frame, options *DetectorOptions) bool {
 	}
 
 	return true
+}
+
+func handleStatisctisLoging(statistics frame.FramesStatistics) {
+	logrus.Infof("Frame brightness mean: %f", statistics.BrightnessMean)
+	logrus.Infof("Frame brightness standard deviation: %f", statistics.BrightnessStandardDeviation)
+	logrus.Infof("Frame brightness max: %f", statistics.BrightnessMax)
+	logrus.Infof("Frame color difference mean: %f", statistics.ColorDifferenceMean)
+	logrus.Infof("Frame color difference standard deviation: %f", statistics.ColorDifferenceStandardDeviation)
+	logrus.Infof("Frame color difference max: %f", statistics.ColorDifferenceMax)
+	logrus.Infof("Frame color binary threshold mean: %f", statistics.BinaryThresholdDifferenceMean)
+	logrus.Infof("Frame color binary threshold standard deviation: %f", statistics.BinaryThresholdDifferenceStandardDeviation)
+	logrus.Infof("Frame color binary threshold max: %f", statistics.BinaryThresholdDifferenceMax)
 }
