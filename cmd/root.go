@@ -78,6 +78,12 @@ func init() {
 		DetectorOptions.FrameScalingFactor,
 		"The frame scaling factor used to downscale frames for better performance.")
 
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.Denoise,
+		"denoise", "n",
+		DetectorOptions.Denoise,
+		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
+
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.SetOutput(os.Stdout)
 	logrus.SetFormatter(&nestedFormatter.Formatter{

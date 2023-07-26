@@ -66,8 +66,10 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 			draw.NearestNeighbor.Scale(frameCurrent, frameCurrent.Rect, frameCurrentBuffer, frameCurrentBuffer.Bounds(), draw.Over, nil)
 		}
 
-		if err := utils.BlurImage(frameCurrent, frameCurrent, 8); err != nil {
-			return fmt.Errorf("detector: failed to blur the current frame image: %w", err)
+		if detector.options.Denoise {
+			if err := utils.BlurImage(frameCurrent, frameCurrent, 8); err != nil {
+				return fmt.Errorf("detector: failed to blur the current frame image: %w", err)
+			}
 		}
 
 		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber)
