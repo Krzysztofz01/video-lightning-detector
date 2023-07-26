@@ -16,6 +16,30 @@ func Mean(x []float64) float64 {
 	return sum / float64(len(x))
 }
 
+// Calculate the moving mean value of the provided set. The position paramter is the index of the central subset element
+// and the bias is the amount of "left" and "right" neighbours. Elements out of index are not taken under account.
+func MovingMean(x []float64, position, bias int) float64 {
+	if len(x) == 0 {
+		panic("utils: can not calcualte the mean of an empty set")
+	}
+
+	if position >= len(x) {
+		panic("utils: the position is out of bounds of the value set")
+	}
+
+	nominator := 0.0
+	denominator := 0.0
+
+	for index := position - bias; index <= position+bias; index += 1 {
+		if index >= 0 && index < len(x) {
+			nominator += x[index]
+			denominator += 1
+		}
+	}
+
+	return nominator / denominator
+}
+
 // Calculate the population standard deviation value of the provided set. Panic if the value set is empty.
 func StandardDeviation(x []float64) float64 {
 	if len(x) == 0 {
