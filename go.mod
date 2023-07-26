@@ -6,6 +6,7 @@ require (
 	github.com/AlexEidt/Vidio v1.4.2
 	github.com/Krzysztofz01/pimit v0.1.1
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
+	github.com/esimov/stackblur-go v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
