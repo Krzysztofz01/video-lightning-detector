@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"fmt"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 )
@@ -16,4 +19,26 @@ func CreateFileWithTree(path string) (*os.File, error) {
 	}
 
 	return os.Create(path)
+}
+
+// Create a new png file at the given path and encode the specified image into it.
+// TODO: Add nil checks for params
+// TODO: Add unit tests
+func ExportImageAsPng(path string, img image.Image) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("utils: failed to create the png image file: %w", err)
+	}
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	if err := png.Encode(file, img); err != nil {
+		return fmt.Errorf("utils: failed to encode the image as png: %w", err)
+	}
+
+	return nil
 }
