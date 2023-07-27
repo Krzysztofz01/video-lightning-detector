@@ -11,7 +11,15 @@ import (
 	"go.uber.org/atomic"
 )
 
+const (
+	// TODO: Implement different threshold for day/night. The brightness value can be used as the determinant.
+	BinaryThresholdParam float64 = 0.784313725
+)
+
 // Strucutre representing a single video frame and its calculated parameters.
+// TODO: When it coms to BinaryThreshold we need to test which approach gives better results.
+// Currently we are comparing the BT of the previous and current frame and than calcualte the white_pixels / all_pixels
+// Alternatively we can just count the occurance of white pixels and return the non-normalized result
 type Frame struct {
 	OrdinalNumber             int     `json:"ordinal-number"`
 	ColorDifference           float64 `json:"color-difference"`
@@ -83,8 +91,8 @@ func calculateFramesColorDifference(currentFrame, previousFrame image.Image) flo
 func calculateFramesBinaryThresholdDifference(currentFrame, previousFrame image.Image) float64 {
 	difference := atomic.NewInt32(0)
 	pimit.ParallelColumnRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
-		thresholdCurrent := utils.BinaryThreshold(currentFrameColor, 0.0196)
-		thresholdPrevious := utils.BinaryThreshold(previousFrame.At(x, y), 0.0196)
+		thresholdCurrent := utils.BinaryThreshold(currentFrameColor, BinaryThresholdParam)
+		thresholdPrevious := utils.BinaryThreshold(previousFrame.At(x, y), BinaryThresholdParam)
 
 		if thresholdCurrent != thresholdPrevious {
 			difference.Add(1)
