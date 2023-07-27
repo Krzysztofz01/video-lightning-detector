@@ -7,34 +7,21 @@ import (
 	"fmt"
 	"io"
 	"sync"
-
-	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
 // Structure representing the collection of video frames.
 type FramesCollection struct {
-	Frames map[int]*Frame
-	mu     sync.RWMutex
-}
-
-// Structure containing frames descriptive statistics values.
-type FramesStatistics struct {
-	BrightnessMean                             float64
-	BrightnessStandardDeviation                float64
-	BrightnessMax                              float64
-	ColorDifferenceMean                        float64
-	ColorDifferenceStandardDeviation           float64
-	ColorDifferenceMax                         float64
-	BinaryThresholdDifferenceMean              float64
-	BinaryThresholdDifferenceStandardDeviation float64
-	BinaryThresholdDifferenceMax               float64
+	Frames           map[int]*Frame
+	cachedStatistics *FramesStatistics
+	mu               sync.RWMutex
 }
 
 // Create a new frames collection with a given capacity of frames.
 func CreateNewFramesCollection(frames int) *FramesCollection {
 	return &FramesCollection{
-		Frames: make(map[int]*Frame, frames),
-		mu:     sync.RWMutex{},
+		Frames:           make(map[int]*Frame, frames),
+		cachedStatistics: nil,
+		mu:               sync.RWMutex{},
 	}
 }
 
@@ -52,6 +39,7 @@ func (frames *FramesCollection) Append(frame *Frame) error {
 	}
 
 	frames.Frames[frame.OrdinalNumber] = frame
+	frames.cachedStatistics = nil
 	return nil
 }
 
@@ -73,6 +61,11 @@ func (frames *FramesCollection) GetAll() []*Frame {
 	frames.mu.RLock()
 	defer frames.mu.RUnlock()
 
+	return frames.mapFramesToSlice()
+}
+
+// Get all frames sorted by the frame ordinal nubmer. This function does not lock and should only be used intrnaly by the FramesCollection
+func (frames *FramesCollection) mapFramesToSlice() []*Frame {
 	values := make([]*Frame, len(frames.Frames))
 	for index := 0; index < len(frames.Frames); index += 1 {
 		frameNumber := index + 1
@@ -92,29 +85,11 @@ func (frames *FramesCollection) CalculateStatistics() FramesStatistics {
 	frames.mu.RLock()
 	defer frames.mu.RUnlock()
 
-	var (
-		framesBrightness                []float64 = make([]float64, 0, len(frames.Frames))
-		framesColorDifference           []float64 = make([]float64, 0, len(frames.Frames))
-		framesBinaryThresholdDifference []float64 = make([]float64, 0, len(frames.Frames))
-	)
-
-	for _, frame := range frames.Frames {
-		framesBrightness = append(framesBrightness, frame.Brightness)
-		framesColorDifference = append(framesColorDifference, frame.ColorDifference)
-		framesBinaryThresholdDifference = append(framesBinaryThresholdDifference, frame.BinaryThresholdDifference)
+	if frames.cachedStatistics == nil {
+		frames.cachedStatistics = CreateNewFramesStatistics(frames.mapFramesToSlice())
 	}
 
-	return FramesStatistics{
-		BrightnessMean:                             utils.Mean(framesBrightness),
-		BrightnessStandardDeviation:                utils.StandardDeviation(framesBrightness),
-		BrightnessMax:                              utils.Max(framesBrightness),
-		ColorDifferenceMean:                        utils.Mean(framesColorDifference),
-		ColorDifferenceStandardDeviation:           utils.StandardDeviation(framesColorDifference),
-		ColorDifferenceMax:                         utils.Max(framesColorDifference),
-		BinaryThresholdDifferenceMean:              utils.Mean(framesBinaryThresholdDifference),
-		BinaryThresholdDifferenceStandardDeviation: utils.StandardDeviation(framesBinaryThresholdDifference),
-		BinaryThresholdDifferenceMax:               utils.Max(framesBinaryThresholdDifference),
-	}
+	return *frames.cachedStatistics
 }
 
 // Write the JSON format frames report to the provided writer which can be a file reference.

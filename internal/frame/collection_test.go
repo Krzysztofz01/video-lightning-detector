@@ -88,6 +88,19 @@ func TestFramesCollectionShouldCalculateStatistics(t *testing.T) {
 	assert.Equal(t, statistics.BinaryThresholdDifferenceMean, 0.5)
 	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
 	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
+
+	cachedStatistics := collection.CalculateStatistics()
+
+	assert.Equal(t, cachedStatistics, statistics)
+	assert.Equal(t, statistics.BrightnessMean, 0.5)
+	assert.Equal(t, statistics.BrightnessStandardDeviation, 0.5)
+	assert.Equal(t, statistics.BrightnessMax, 1.0)
+	assert.Equal(t, statistics.ColorDifferenceMean, 0.5)
+	assert.Equal(t, statistics.ColorDifferenceStandardDeviation, 0.5)
+	assert.Equal(t, statistics.ColorDifferenceMax, 1.0)
+	assert.Equal(t, statistics.BinaryThresholdDifferenceMean, 0.5)
+	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
+	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
 }
 
 func TestFramesCollectionShouldExportJsonReport(t *testing.T) {
