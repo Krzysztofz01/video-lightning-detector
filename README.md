@@ -15,7 +15,7 @@ Installation (Linux, Windows and MacOS):
 ```sh
 git clone https://github.com/Krzysztofz01/video-lightning-detector
 
-cd pixel-sorter
+cd video-lightning-detector
 
 task build
 ```
