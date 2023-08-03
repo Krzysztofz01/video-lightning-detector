@@ -40,25 +40,31 @@ func init() {
 		&DetectorOptions.ColorDifferenceDetectionThreshold,
 		"color-difference-threshold", "c",
 		DetectorOptions.ColorDifferenceDetectionThreshold,
-		"The threshold used to determine the difference between two neighbouring frames on the color basis.")
+		"The threshold used to determine the difference between two neighbouring frames on the color basis. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
 		"binary-threshold-difference-threshold", "t",
 		DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
-		"The threshold used to determine the difference between two neighbouring frames after the binary thresholding process.")
+		"The threshold used to determine the difference between two neighbouring frames after the binary thresholding process. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.BrightnessDetectionThreshold,
 		"brightness-threshold", "b",
 		DetectorOptions.BrightnessDetectionThreshold,
-		"The threshold used to determine the brightness of the frame.")
+		"The threshold used to determine the brightness of the frame. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average")
+
+	rootCmd.PersistentFlags().Int32VarP(
+		&DetectorOptions.MovingMeanResolution,
+		"moving-mean-resolution", "m",
+		DetectorOptions.MovingMeanResolution,
+		"The number of elements of the subset on which the moving mean will be calculated, for each parameter.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.SkipFramesExport,
 		"skip-frames-export", "f",
 		DetectorOptions.SkipFramesExport,
-		"Value indicating if the detected frams should not be exported.")
+		"Value indicating if the detected frames should not be exported.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.ExportCsvReport,
@@ -107,6 +113,12 @@ func Execute(args []string) {
 }
 
 func run(cmd *cobra.Command, args []string) error {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Fatal(err)
+		}
+	}()
+
 	if VerboseMode {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
