@@ -14,7 +14,7 @@ func TestFrameStatisticsShouldCreate(t *testing.T) {
 		CreateNewFrame(mockImage(color.Black), mockImage(color.White), 2),
 	}
 
-	statistics := CreateNewFramesStatistics(frames)
+	statistics := CreateNewFramesStatistics(frames, 50)
 	assert.NotNil(t, statistics)
 
 	assert.Equal(t, statistics.BrightnessMean, 0.5)
@@ -40,7 +40,7 @@ func TestFramesStatisticsShouldExportCsvReport(t *testing.T) {
 		CreateNewFrame(mockImage(color.Black), mockImage(color.White), 2),
 	}
 
-	statistics := CreateNewFramesStatistics(frames)
+	statistics := CreateNewFramesStatistics(frames, 50)
 	assert.NotNil(t, statistics)
 
 	err := statistics.ExportCsvReport(buffer)

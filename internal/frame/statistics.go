@@ -9,10 +9,6 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-const (
-	MovingMeanBias = 25
-)
-
 // Structure containing frames descriptive statistics values.
 type FramesStatistics struct {
 	BrightnessMean                             float64
@@ -29,8 +25,10 @@ type FramesStatistics struct {
 	BinaryThresholdDifferenceMax               float64
 }
 
-func CreateNewFramesStatistics(frames []*Frame) *FramesStatistics {
+// TODO: movingMeanResolution validation > 1
+func CreateNewFramesStatistics(frames []*Frame, movingMeanResolution int) *FramesStatistics {
 	var (
+		movingMeanBias                int       = movingMeanResolution / 2
 		brightness                    []float64 = make([]float64, 0, len(frames))
 		colorDiff                     []float64 = make([]float64, 0, len(frames))
 		binaryThresholdDiff           []float64 = make([]float64, 0, len(frames))
@@ -46,9 +44,9 @@ func CreateNewFramesStatistics(frames []*Frame) *FramesStatistics {
 	}
 
 	for index := range frames {
-		brightnessMovingMean = append(brightnessMovingMean, utils.MovingMean(brightness, index, MovingMeanBias))
-		colorDiffMovingMean = append(colorDiffMovingMean, utils.MovingMean(colorDiff, index, MovingMeanBias))
-		binaryThresholdDiffMovingMean = append(binaryThresholdDiffMovingMean, utils.MovingMean(binaryThresholdDiff, index, MovingMeanBias))
+		brightnessMovingMean = append(brightnessMovingMean, utils.MovingMean(brightness, index, movingMeanBias))
+		colorDiffMovingMean = append(colorDiffMovingMean, utils.MovingMean(colorDiff, index, movingMeanBias))
+		binaryThresholdDiffMovingMean = append(binaryThresholdDiffMovingMean, utils.MovingMean(binaryThresholdDiff, index, movingMeanBias))
 	}
 
 	return &FramesStatistics{

@@ -11,17 +11,19 @@ import (
 
 // Structure representing the collection of video frames.
 type FramesCollection struct {
-	Frames           map[int]*Frame
-	cachedStatistics *FramesStatistics
-	mu               sync.RWMutex
+	Frames                     map[int]*Frame
+	cachedStatisticsValue      *FramesStatistics
+	cachedStatisticsResolution int
+	mu                         sync.RWMutex
 }
 
 // Create a new frames collection with a given capacity of frames.
 func CreateNewFramesCollection(frames int) *FramesCollection {
 	return &FramesCollection{
-		Frames:           make(map[int]*Frame, frames),
-		cachedStatistics: nil,
-		mu:               sync.RWMutex{},
+		Frames:                     make(map[int]*Frame, frames),
+		cachedStatisticsValue:      nil,
+		cachedStatisticsResolution: 0,
+		mu:                         sync.RWMutex{},
 	}
 }
 
@@ -39,7 +41,8 @@ func (frames *FramesCollection) Append(frame *Frame) error {
 	}
 
 	frames.Frames[frame.OrdinalNumber] = frame
-	frames.cachedStatistics = nil
+	frames.cachedStatisticsValue = nil
+	frames.cachedStatisticsResolution = 0
 	return nil
 }
 
@@ -81,15 +84,16 @@ func (frames *FramesCollection) mapFramesToSlice() []*Frame {
 }
 
 // Calculate the descriptive statistics values for the given frames collection.
-func (frames *FramesCollection) CalculateStatistics() FramesStatistics {
+func (frames *FramesCollection) CalculateStatistics(movingMeanResolution int) FramesStatistics {
 	frames.mu.RLock()
 	defer frames.mu.RUnlock()
 
-	if frames.cachedStatistics == nil {
-		frames.cachedStatistics = CreateNewFramesStatistics(frames.mapFramesToSlice())
+	if frames.cachedStatisticsValue == nil || frames.cachedStatisticsResolution != movingMeanResolution {
+		frames.cachedStatisticsValue = CreateNewFramesStatistics(frames.mapFramesToSlice(), movingMeanResolution)
+		frames.cachedStatisticsResolution = movingMeanResolution
 	}
 
-	return *frames.cachedStatistics
+	return *frames.cachedStatisticsValue
 }
 
 // Write the JSON format frames report to the provided writer which can be a file reference.

@@ -77,7 +77,7 @@ func TestFramesCollectionShouldCalculateStatistics(t *testing.T) {
 	err = collection.Append(frame2)
 	assert.Nil(t, err)
 
-	statistics := collection.CalculateStatistics()
+	statistics := collection.CalculateStatistics(50)
 
 	assert.Equal(t, statistics.BrightnessMean, 0.5)
 	assert.Equal(t, statistics.BrightnessStandardDeviation, 0.5)
@@ -89,7 +89,7 @@ func TestFramesCollectionShouldCalculateStatistics(t *testing.T) {
 	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
 	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
 
-	cachedStatistics := collection.CalculateStatistics()
+	cachedStatistics := collection.CalculateStatistics(50)
 
 	assert.Equal(t, cachedStatistics, statistics)
 	assert.Equal(t, statistics.BrightnessMean, 0.5)

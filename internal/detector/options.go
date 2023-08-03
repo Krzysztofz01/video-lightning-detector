@@ -6,6 +6,7 @@ type DetectorOptions struct {
 	BrightnessDetectionThreshold                float64
 	ColorDifferenceDetectionThreshold           float64
 	BinaryThresholdDifferenceDetectionThreshold float64
+	MovingMeanResolution                        int32
 	ExportCsvReport                             bool
 	ExportJsonReport                            bool
 	SkipFramesExport                            bool
@@ -15,6 +16,7 @@ type DetectorOptions struct {
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
 // a message will be stored in the string return value.
+// TODO: MovingMeanResolution validation >1
 func (options *DetectorOptions) AreValid() (bool, string) {
 	if options.BrightnessDetectionThreshold < 0.0 || options.BrightnessDetectionThreshold > 1.0 {
 		return false, "the frame brightness detection threshold must be between zero and one"
@@ -41,6 +43,7 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		BrightnessDetectionThreshold:                0.0,
 		ColorDifferenceDetectionThreshold:           0.0,
 		BinaryThresholdDifferenceDetectionThreshold: 0.0,
+		MovingMeanResolution:                        50,
 		ExportCsvReport:                             false,
 		ExportJsonReport:                            false,
 		SkipFramesExport:                            false,
