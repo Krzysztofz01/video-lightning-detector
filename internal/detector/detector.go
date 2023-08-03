@@ -55,13 +55,13 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 	}
 
 	if detector.options.ExportCsvReport {
-		if err := handleCsvReportExport(outputDirectoryPath, frames); err != nil {
+		if err := detector.handleCsvReportExport(outputDirectoryPath, frames); err != nil {
 			return fmt.Errorf("detector: csv report export failed: %w", err)
 		}
 	}
 
 	if detector.options.ExportJsonReport {
-		if err := handleJsonReportExport(outputDirectoryPath, frames); err != nil {
+		if err := detector.handleJsonReportExport(outputDirectoryPath, frames); err != nil {
 			return fmt.Errorf("detector: json report export failed: %w", err)
 		}
 	}
@@ -129,34 +129,43 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 
 	detectionsIndex := make([]int, 0)
 	frames := framesCollection.GetAll()
+	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
 
 	for frameIndex, frame := range frames {
-		logrus.Infof("Frame: [%d/%d]. Checking frame thresholds.", frameIndex+1, len(frames))
-		if frame.Brightness < detector.options.BrightnessDetectionThreshold {
-			logrus.Debugf("Brightness detection threshold not met. (%f < %f)",
+		logPrefix := fmt.Sprintf("Frame: [%d/%d].", frameIndex+1, len(frames))
+		logrus.Infof("%s Checking frame thresholds.", logPrefix)
+
+		if frame.Brightness < detector.options.BrightnessDetectionThreshold+statistics.BrightnessMovingMean[frameIndex] {
+			logrus.Debugf("%s Frame brightenss requirements not met. (%f < %f + %f)",
+				logPrefix,
 				frame.Brightness,
-				detector.options.BrightnessDetectionThreshold)
+				detector.options.BrightnessDetectionThreshold,
+				statistics.BrightnessMovingMean[frameIndex])
 
 			continue
 		}
 
-		if frame.ColorDifference < detector.options.ColorDifferenceDetectionThreshold {
-			logrus.Debugf("Color difference detection threshold not met. (%f < %f)",
+		if frame.ColorDifference < detector.options.ColorDifferenceDetectionThreshold+statistics.ColorDifferenceMovingMean[frameIndex] {
+			logrus.Debugf("%s Frame color difference requirements not met. (%f < %f + %f)",
+				logPrefix,
 				frame.ColorDifference,
-				detector.options.ColorDifferenceDetectionThreshold)
+				detector.options.ColorDifferenceDetectionThreshold,
+				statistics.ColorDifferenceMovingMean[frameIndex])
 
 			continue
 		}
 
-		if frame.BinaryThresholdDifference < detector.options.BinaryThresholdDifferenceDetectionThreshold {
-			logrus.Debugf("Binary threshold difference detection threshold not met. (%f < %f)",
+		if frame.BinaryThresholdDifference < detector.options.BinaryThresholdDifferenceDetectionThreshold+statistics.BinaryThresholdDifferenceMovingMean[frameIndex] {
+			logrus.Debugf("%s Frame binary threshold difference requirements not met. (%f < %f + %f)",
+				logPrefix,
 				frame.BinaryThresholdDifference,
-				detector.options.BinaryThresholdDifferenceDetectionThreshold)
+				detector.options.BinaryThresholdDifferenceDetectionThreshold,
+				statistics.BinaryThresholdDifferenceMovingMean[frameIndex])
 
 			continue
 		}
 
-		logrus.Infof("Frame: [%d/%d]. Frame meets the thresholds requirements.", frameIndex+1, len(frames))
+		logrus.Infof("%s Frame meets the threshold requirements.", logPrefix)
 		detectionsIndex = append(detectionsIndex, frameIndex)
 	}
 
@@ -204,7 +213,7 @@ func (detector *detector) performFramesExport(inputVideoPath, outputDirectoryPat
 
 // Helper function used to print out descriptive statistics aboout the frames collection
 func (detector *detector) performStatisticsLogging(framesCollection *frame.FramesCollection) {
-	statistics := framesCollection.CalculateStatistics()
+	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
 
 	logrus.Infof("Frame brightness mean: %f", statistics.BrightnessMean)
 	logrus.Infof("Frame brightness standard deviation: %f", statistics.BrightnessStandardDeviation)
@@ -218,7 +227,7 @@ func (detector *detector) performStatisticsLogging(framesCollection *frame.Frame
 }
 
 // Helper function used to export the frames collection report in the CSV format.
-func handleCsvReportExport(outputDirectoryPath string, frames *frame.FramesCollection) error {
+func (detector *detector) handleCsvReportExport(outputDirectoryPath string, frames *frame.FramesCollection) error {
 	logrus.Info("Exporting reports in CSV format.")
 	csvFramesReportPath := path.Join(outputDirectoryPath, "frames-report.csv")
 	framesReportFile, err := utils.CreateFileWithTree(csvFramesReportPath)
@@ -250,7 +259,7 @@ func handleCsvReportExport(outputDirectoryPath string, frames *frame.FramesColle
 		}
 	}()
 
-	statistics := frames.CalculateStatistics()
+	statistics := frames.CalculateStatistics(int(detector.options.MovingMeanResolution))
 	if err := statistics.ExportCsvReport(statisticsReportFile); err != nil {
 		return fmt.Errorf("detector: failed to export the csv statistics report: %w", err)
 	} else {
@@ -261,7 +270,7 @@ func handleCsvReportExport(outputDirectoryPath string, frames *frame.FramesColle
 }
 
 // Helper function used to export the frames collection report in the JSON format.
-func handleJsonReportExport(outputDirectoryPath string, frames *frame.FramesCollection) error {
+func (detector *detector) handleJsonReportExport(outputDirectoryPath string, frames *frame.FramesCollection) error {
 	logrus.Info("Exporting the frames report in JSON format.")
 	jsonReportPath := path.Join(outputDirectoryPath, "report.json")
 	file, err := utils.CreateFileWithTree(jsonReportPath)
