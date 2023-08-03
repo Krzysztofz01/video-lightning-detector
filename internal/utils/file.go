@@ -25,7 +25,7 @@ func CreateFileWithTree(path string) (*os.File, error) {
 // TODO: Add nil checks for params
 // TODO: Add unit tests
 func ExportImageAsPng(path string, img image.Image) error {
-	file, err := os.Create(path)
+	file, err := CreateFileWithTree(path)
 	if err != nil {
 		return fmt.Errorf("utils: failed to create the png image file: %w", err)
 	}
