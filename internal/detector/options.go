@@ -1,8 +1,8 @@
 package detector
 
-// TODO: Support for --auto flag
 // Structure representing the options for the detector.
 type DetectorOptions struct {
+	AutoThresholds                              bool
 	BrightnessDetectionThreshold                float64
 	ColorDifferenceDetectionThreshold           float64
 	BinaryThresholdDifferenceDetectionThreshold float64
@@ -40,6 +40,7 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 // Return the default detector options.
 func GetDefaultDetectorOptions() DetectorOptions {
 	return DetectorOptions{
+		AutoThresholds:                              false,
 		BrightnessDetectionThreshold:                0.0,
 		ColorDifferenceDetectionThreshold:           0.0,
 		BinaryThresholdDifferenceDetectionThreshold: 0.0,

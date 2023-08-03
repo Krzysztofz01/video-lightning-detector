@@ -45,6 +45,10 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 		return fmt.Errorf("detector: analysis run stage failed: %w", err)
 	}
 
+	if detector.options.AutoThresholds {
+		detector.applyAutoThresholds(frames)
+	}
+
 	detector.performStatisticsLogging(frames)
 	detections := detector.performVideoDetection(frames)
 
@@ -122,6 +126,77 @@ func (detector *detector) performVideoAnalysis(inputVideoPath string) (*frame.Fr
 	return frames, nil
 }
 
+// Helper function used to auto-calculate the detection thresholds based on the frames and apply the threshold to the detector options
+// TODO: More versatile results could be achived using "moving standard deviation"???
+func (detector *detector) applyAutoThresholds(framesCollection *frame.FramesCollection) {
+	autoThresholdTime := time.Now()
+	logrus.Debugln("Starting the auto thresholds calculation stage.")
+
+	frames := framesCollection.GetAll()
+	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
+
+	var (
+		gDiffBrightnessValue float64 = 0
+		gDiffBrightnessCount int     = 0
+		gDiffColorDiffValue  float64 = 0
+		gDiffColorDiffCount  int     = 0
+		gDiffBTDiffValue     float64 = 0
+		gDiffBTDiffCount     int     = 0
+	)
+
+	for i := 0; i < len(frames); i += 1 {
+		diffBrightness := frames[i].Brightness - statistics.BrightnessMovingMean[i]
+		if diffBrightness > 0 {
+			gDiffBrightnessValue += diffBrightness
+			gDiffBrightnessCount += 1
+		}
+
+		diffColorDiff := frames[i].ColorDifference - statistics.ColorDifferenceMovingMean[i]
+		if diffColorDiff > 0 {
+			gDiffColorDiffValue += diffColorDiff
+			gDiffColorDiffCount += 1
+		}
+
+		diffBTDiff := frames[i].BinaryThresholdDifference - statistics.BinaryThresholdDifferenceMovingMean[i]
+		if diffBTDiff > 0 {
+			gDiffBTDiffValue += diffBTDiff
+			gDiffBTDiffCount += 1
+		}
+	}
+
+	gDiffBrightnessValue /= float64(gDiffBrightnessCount)
+	gDiffColorDiffValue /= float64(gDiffColorDiffCount)
+	gDiffBTDiffValue /= float64(gDiffBTDiffCount)
+
+	defaultOptions := GetDefaultDetectorOptions()
+
+	if defaultOptions.BrightnessDetectionThreshold == defaultOptions.BrightnessDetectionThreshold {
+		detector.options.BrightnessDetectionThreshold = gDiffBrightnessValue
+	} else {
+		logrus.Warnf("The brightness detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
+			detector.options.BrightnessDetectionThreshold,
+			gDiffBrightnessValue)
+	}
+
+	if defaultOptions.ColorDifferenceDetectionThreshold == defaultOptions.ColorDifferenceDetectionThreshold {
+		detector.options.ColorDifferenceDetectionThreshold = gDiffColorDiffValue
+	} else {
+		logrus.Warnf("The color difference detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
+			detector.options.ColorDifferenceDetectionThreshold,
+			gDiffColorDiffValue)
+	}
+
+	if defaultOptions.BinaryThresholdDifferenceDetectionThreshold == defaultOptions.BinaryThresholdDifferenceDetectionThreshold {
+		detector.options.BinaryThresholdDifferenceDetectionThreshold = gDiffBTDiffValue
+	} else {
+		logrus.Warnf("The binary threshold detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
+			detector.options.BinaryThresholdDifferenceDetectionThreshold,
+			gDiffBTDiffValue)
+	}
+
+	logrus.Debugf("Auto thresholds calculation stage finished. Stage took: %s", time.Since(autoThresholdTime))
+}
+
 // Helper function used to filter out indecies representing frames wihich meet the requirement thresholds.
 func (detector *detector) performVideoDetection(framesCollection *frame.FramesCollection) []int {
 	videoDetectionTime := time.Now()
@@ -177,6 +252,7 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 func (detector *detector) performFramesExport(inputVideoPath, outputDirectoryPath string, detections []int) error {
 	framesExportTime := time.Now()
 	logrus.Debugf("Starting the frames export stage.")
+	logrus.Debugf("About to export %d frames.", len(detections))
 
 	video, err := vidio.NewVideo(inputVideoPath)
 	if err != nil {

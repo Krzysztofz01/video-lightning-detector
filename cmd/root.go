@@ -36,6 +36,12 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&VerboseMode, "verbose", "v", false, "Enable verbose logging.")
 
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.AutoThresholds,
+		"auto-thresholds", "a",
+		DetectorOptions.AutoThresholds,
+		"Automatically select thresholds for all parameters based on calculated frame values. Values that are explicitly provided will not be overwritten.")
+
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.ColorDifferenceDetectionThreshold,
 		"color-difference-threshold", "c",
