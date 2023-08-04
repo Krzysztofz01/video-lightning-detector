@@ -202,7 +202,8 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 	videoDetectionTime := time.Now()
 	logrus.Debugf("Starting the video detection stage.")
 
-	detectionsIndex := make([]int, 0)
+	detections := CreateDetectionBuffer()
+
 	frames := framesCollection.GetAll()
 	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
 
@@ -217,6 +218,7 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 				detector.options.BrightnessDetectionThreshold,
 				statistics.BrightnessMovingMean[frameIndex])
 
+			detections.Append(frameIndex, false)
 			continue
 		}
 
@@ -227,6 +229,7 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 				detector.options.ColorDifferenceDetectionThreshold,
 				statistics.ColorDifferenceMovingMean[frameIndex])
 
+			detections.Append(frameIndex, false)
 			continue
 		}
 
@@ -237,15 +240,16 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 				detector.options.BinaryThresholdDifferenceDetectionThreshold,
 				statistics.BinaryThresholdDifferenceMovingMean[frameIndex])
 
+			detections.Append(frameIndex, false)
 			continue
 		}
 
 		logrus.Infof("%s Frame meets the threshold requirements.", logPrefix)
-		detectionsIndex = append(detectionsIndex, frameIndex)
+		detections.Append(frameIndex, true)
 	}
 
 	logrus.Debugf("Video detection stage finished. Stage took: %s", time.Since(videoDetectionTime))
-	return detectionsIndex
+	return detections.Resolve()
 }
 
 // Helper function used to export frames which meet the requirement thresholds to png files.
