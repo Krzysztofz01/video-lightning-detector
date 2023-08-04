@@ -10,8 +10,15 @@ import (
 )
 
 // Perform a "stackblur" blurring on the source image with a specified radius parameter and store the result to the destination image pointer.
-// TODO: Add unit tests
 func BlurImage(src image.Image, dst *image.RGBA, radius int) error {
+	if src == nil {
+		return errors.New("utils: the source image reference is nil")
+	}
+
+	if dst == nil {
+		return errors.New("utils: the destination image pointer is nil")
+	}
+
 	if src.Bounds().Dx() != dst.Bounds().Dx() || src.Bounds().Dy() != dst.Bounds().Dy() {
 		return errors.New("utils: source and destination images bounds missmatch")
 	}
