@@ -71,3 +71,12 @@ func Max(x []float64) float64 {
 
 	return max
 }
+
+// Return the smaller value of x or y. This functions does not support the edge cases like math.Min
+func MinInt(x, y int) int {
+	if x < y {
+		return x
+	} else {
+		return y
+	}
+}

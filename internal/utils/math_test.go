@@ -91,3 +91,22 @@ func TestMaxShouldCalculateMaxForValueSet(t *testing.T) {
 
 	assert.InDelta(t, expected, actual, delta)
 }
+
+func TestMinIntShoudlReturnTheSmallerValues(t *testing.T) {
+	cases := map[struct {
+		x int
+		y int
+	}]int{
+		{0, 1}:   0,
+		{0, -1}:  -1,
+		{1, 1}:   1,
+		{1, 2}:   1,
+		{-1, -2}: -2,
+	}
+
+	for c, expected := range cases {
+		actual := MinInt(c.x, c.y)
+
+		assert.Equal(t, expected, actual)
+	}
+}
