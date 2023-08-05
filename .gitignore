@@ -31,3 +31,8 @@ bin
 
 # Coverage file
 coverage.out
+
+# Profiling files
+*.prof
+cpu-profile.svg
+mem-profile.svg
