@@ -19,7 +19,7 @@ We can enter the appropriate threshold values for the above parameters to fine-t
 Required software:
 - **[git](https://git-scm.com/)** - Used to download the source code from the repository.
 - **[task](https://taskfile.dev/)** - Used as the main build tool. (This one is optional, the program can be built "manually")
-- **[go (version: 1.19+)](https://go.dev/)** - Used to compile the source code locally.
+- **[go (version: 1.20+)](https://go.dev/)** - Used to compile the source code locally.
 - **[ffmpeg](https://ffmpeg.org/)** - Used by the program for frame extraction.
 
 Installation (Linux, Windows and MacOS):
