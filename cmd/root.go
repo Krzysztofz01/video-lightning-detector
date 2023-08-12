@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	nestedFormatter "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 )
 
 var rootCmd = &cobra.Command{
@@ -95,47 +94,30 @@ func init() {
 		"denoise", "n",
 		DetectorOptions.Denoise,
 		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
-
-	logrus.SetLevel(logrus.InfoLevel)
-	logrus.SetOutput(os.Stdout)
-	logrus.SetFormatter(&nestedFormatter.Formatter{
-		TimestampFormat:  "",
-		HideKeys:         true,
-		NoColors:         false,
-		NoFieldsColors:   false,
-		NoFieldsSpace:    false,
-		ShowFullLevel:    false,
-		NoUppercaseLevel: false,
-		TrimMessages:     false,
-		CallerFirst:      false,
-	})
 }
 
 func Execute(args []string) {
 	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
-		logrus.Fatal(err.Error())
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
 func run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if err := recover(); err != nil {
-			logrus.Fatal(err)
+			fmt.Println(err)
 		}
 	}()
 
-	if VerboseMode {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	detectorInstance, err := detector.CreateDetector(DetectorOptions)
+	renderer := render.CreateRenderer(VerboseMode)
+	detectorInstance, err := detector.CreateDetector(renderer, DetectorOptions)
 	if err != nil {
 		return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
 	}
 
 	if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath); err != nil {
-		logrus.Error(err)
 		return fmt.Errorf("cmd: detector run failed: %w", err)
 	}
 
