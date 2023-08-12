@@ -303,11 +303,11 @@ func (detector *detector) performFramesExport(inputVideoPath, outputDirectoryPat
 				return fmt.Errorf("detector: failed to export the frame image: %w", err)
 			}
 
+			progressBarStep()
 			detector.renderer.LogInfo("Frame: [%d/%d]. Frame image exported at: %s", indexVideo+1, videoFramesCount, frameImagePath)
 			indexDetections += 1
 		}
 
-		progressBarStep()
 		indexVideo += 1
 	}
 
