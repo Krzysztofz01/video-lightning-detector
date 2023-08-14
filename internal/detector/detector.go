@@ -12,7 +12,6 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
-	"golang.org/x/image/draw"
 )
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
@@ -111,10 +110,8 @@ func (detector *detector) performVideoAnalysis(inputVideoPath string) (*frame.Fr
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video analysis stage.", frameCount)
 
 	for video.Read() {
-		if detector.options.FrameScalingFactor == 1.0 {
-			copy(frameCurrent.Pix, frameCurrentBuffer.Pix)
-		} else {
-			draw.NearestNeighbor.Scale(frameCurrent, frameCurrent.Rect, frameCurrentBuffer, frameCurrentBuffer.Bounds(), draw.Over, nil)
+		if utils.ScaleImage(frameCurrentBuffer, frameCurrent, detector.options.FrameScalingFactor); err != nil {
+			return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
 		}
 
 		if detector.options.Denoise {
