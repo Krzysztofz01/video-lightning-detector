@@ -385,22 +385,42 @@ func (detector *detector) handleJsonReportExport(outputDirectoryPath string, fra
 	jsonSpinnerClose := detector.renderer.Spinner("Exporting the frames report in JSON format.")
 	defer jsonSpinnerClose()
 
-	jsonReportPath := path.Join(outputDirectoryPath, "report.json")
-	file, err := utils.CreateFileWithTree(jsonReportPath)
+	jsonFramesReportPath := path.Join(outputDirectoryPath, "frames-report.json")
+	framesReportFile, err := utils.CreateFileWithTree(jsonFramesReportPath)
 	if err != nil {
-		return fmt.Errorf("detector: failed to create the json report file: %w", err)
+		return fmt.Errorf("detector: failed to create the json frames report file: %w", err)
 	}
 
 	defer func() {
-		if err := file.Close(); err != nil {
+		if err := framesReportFile.Close(); err != nil {
 			panic(err)
 		}
 	}()
 
-	if err := frames.ExportJsonReport(file); err != nil {
-		return fmt.Errorf("detector: failed to export the json report: %w", err)
+	if err := frames.ExportJsonReport(framesReportFile); err != nil {
+		return fmt.Errorf("detector: failed to export the json frames report: %w", err)
+	} else {
+		detector.renderer.LogInfo("Frames report in JSON format exported to: %s", jsonFramesReportPath)
 	}
 
-	detector.renderer.LogInfo("Frames report in JSON format exported to: %s", jsonReportPath)
+	jsonStatisticsReportPath := path.Join(outputDirectoryPath, "statistics-report.json")
+	statisticsReportFile, err := utils.CreateFileWithTree(jsonStatisticsReportPath)
+	if err != nil {
+		return fmt.Errorf("detector: failed to create the json statistics report file: %w", err)
+	}
+
+	defer func() {
+		if err := statisticsReportFile.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	statistics := frames.CalculateStatistics(int(detector.options.MovingMeanResolution))
+	if err := statistics.ExportJsonReport(statisticsReportFile); err != nil {
+		return fmt.Errorf("detector: failed to export the json statistics report: %w", err)
+	} else {
+		detector.renderer.LogInfo("Statistics report in JSON format exported to %s", jsonStatisticsReportPath)
+	}
+
 	return nil
 }
