@@ -2,6 +2,7 @@ package frame
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -11,18 +12,18 @@ import (
 
 // Structure containing frames descriptive statistics values.
 type FramesStatistics struct {
-	BrightnessMean                             float64
-	BrightnessMovingMean                       []float64
-	BrightnessStandardDeviation                float64
-	BrightnessMax                              float64
-	ColorDifferenceMean                        float64
-	ColorDifferenceMovingMean                  []float64
-	ColorDifferenceStandardDeviation           float64
-	ColorDifferenceMax                         float64
-	BinaryThresholdDifferenceMean              float64
-	BinaryThresholdDifferenceMovingMean        []float64
-	BinaryThresholdDifferenceStandardDeviation float64
-	BinaryThresholdDifferenceMax               float64
+	BrightnessMean                             float64   `json:"brightness-mean"`
+	BrightnessMovingMean                       []float64 `json:"brightness-moving-mean"`
+	BrightnessStandardDeviation                float64   `json:"brightness-standard-deviation"`
+	BrightnessMax                              float64   `json:"brightness-max"`
+	ColorDifferenceMean                        float64   `json:"color-difference-mean"`
+	ColorDifferenceMovingMean                  []float64 `json:"color-difference-moving-mean"`
+	ColorDifferenceStandardDeviation           float64   `json:"color-difference-standard-deviation"`
+	ColorDifferenceMax                         float64   `json:"color-difference-max"`
+	BinaryThresholdDifferenceMean              float64   `json:"binary-threshold-difference-mean"`
+	BinaryThresholdDifferenceMovingMean        []float64 `json:"binary-threshold-difference-moving-mean"`
+	BinaryThresholdDifferenceStandardDeviation float64   `json:"binary-threshold-difference-standard-deviation"`
+	BinaryThresholdDifferenceMax               float64   `json:"binary-threshold-difference-max"`
 }
 
 // TODO: movingMeanResolution validation > 1
@@ -98,6 +99,18 @@ func (statistics *FramesStatistics) ExportCsvReport(file io.Writer) error {
 	}
 
 	csvWriter.Flush()
+	return nil
+}
+
+// Write the JSON format statistics report to the provided writer which can be a file reference.
+func (statistics *FramesStatistics) ExportJsonReport(file io.Writer) error {
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "    ")
+
+	if err := encoder.Encode(statistics); err != nil {
+		return fmt.Errorf("frame: failed to encode the frames statistics to json report file: %w", err)
+	}
+
 	return nil
 }
 
