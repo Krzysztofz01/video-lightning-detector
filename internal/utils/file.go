@@ -23,7 +23,6 @@ func CreateFileWithTree(path string) (*os.File, error) {
 }
 
 // Create a new png file at the given path and encode the specified image into it.
-// TODO: Add unit tests
 func ExportImageAsPng(path string, img image.Image) error {
 	if len(path) == 0 {
 		return errors.New("utils: invalid image path specified")
