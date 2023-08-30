@@ -283,29 +283,25 @@ func (detector *detector) performFramesExport(inputVideoPath, outputDirectoryPat
 
 	defer video.Close()
 
-	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
-	video.SetFrameBuffer(frameCurrentBuffer.Pix)
-
-	indexVideo := 0
-	indexDetections := 0
-	videoFramesCount := video.Frames()
+	// TODO: Limit for large detections
+	frames, err := video.ReadFrames(detections...)
+	if err != nil {
+		return fmt.Errorf("detector: failed to read the specified frames from the video: %w", err)
+	}
 
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video frames export stage.", len(detections))
 
-	for video.Read() && indexDetections < len(detections) {
-		if indexVideo == detections[indexDetections] {
-			frameImageName := fmt.Sprintf("frame-%d.png", indexVideo+1)
-			frameImagePath := path.Join(outputDirectoryPath, frameImageName)
-			if err := utils.ExportImageAsPng(frameImagePath, frameCurrentBuffer); err != nil {
-				return fmt.Errorf("detector: failed to export the frame image: %w", err)
-			}
+	for index, frame := range frames {
+		frameIndex := detections[index]
 
-			progressBarStep()
-			detector.renderer.LogInfo("Frame: [%d/%d]. Frame image exported at: %s", indexVideo+1, videoFramesCount, frameImagePath)
-			indexDetections += 1
+		frameImageName := fmt.Sprintf("frame-%d.png", frameIndex+1)
+		frameImagePath := path.Join(outputDirectoryPath, frameImageName)
+		if err := utils.ExportImageAsPng(frameImagePath, frame); err != nil {
+			return fmt.Errorf("detector: failed to export the frame image: %w", err)
 		}
 
-		indexVideo += 1
+		progressBarStep()
+		detector.renderer.LogInfo("Frame: [%d/%d]. Frame image exported at: %s", frameIndex+1, video.Frames(), frameImagePath)
 	}
 
 	progressBarClose()
