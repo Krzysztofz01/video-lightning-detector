@@ -68,8 +68,8 @@ func CreateNewFrame(currentFrame, previousFrame image.Image, ordinalNumber int) 
 
 func calculateFrameBrightness(currentFrame image.Image) float64 {
 	brightness := atomic.NewFloat64(0.0)
-	pimit.ParallelColumnColorRead(currentFrame, func(color color.Color) {
-		brightness.Add(utils.GetColorBrightness(color))
+	pimit.ParallelRead(currentFrame, func(_, _ int, c color.Color) {
+		brightness.Add(utils.GetColorBrightness(c))
 	})
 
 	frameSize := currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
@@ -78,7 +78,7 @@ func calculateFrameBrightness(currentFrame image.Image) float64 {
 
 func calculateFramesColorDifference(currentFrame, previousFrame image.Image) float64 {
 	difference := atomic.NewFloat64(0.0)
-	pimit.ParallelColumnRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
+	pimit.ParallelRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
 		previousFrameColor := previousFrame.At(x, y)
 
 		difference.Add(utils.GetColorDifference(currentFrameColor, previousFrameColor))
@@ -90,7 +90,7 @@ func calculateFramesColorDifference(currentFrame, previousFrame image.Image) flo
 
 func calculateFramesBinaryThresholdDifference(currentFrame, previousFrame image.Image) float64 {
 	difference := atomic.NewInt32(0)
-	pimit.ParallelColumnRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
+	pimit.ParallelRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
 		thresholdCurrent := utils.BinaryThreshold(currentFrameColor, BinaryThresholdParam)
 		thresholdPrevious := utils.BinaryThreshold(previousFrame.At(x, y), BinaryThresholdParam)
 
