@@ -12,6 +12,9 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/opts"
+	"github.com/go-echarts/go-echarts/v2/types"
 )
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
@@ -74,6 +77,12 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 	if detector.options.ExportJsonReport {
 		if err := detector.handleJsonReportExport(outputDirectoryPath, frames); err != nil {
 			return fmt.Errorf("detector: json report export failed: %w", err)
+		}
+	}
+
+	if detector.options.ExportChartReport {
+		if err := detector.handleChartReportExport(outputDirectoryPath, frames); err != nil {
+			return fmt.Errorf("detector: chart report export failed: %w", err)
 		}
 	}
 
@@ -413,6 +422,67 @@ func (detector *detector) handleJsonReportExport(outputDirectoryPath string, fra
 		return fmt.Errorf("detector: failed to export the json statistics report: %w", err)
 	} else {
 		detector.renderer.LogInfo("Statistics report in JSON format exported to %s", jsonStatisticsReportPath)
+	}
+
+	return nil
+}
+
+func (detector *detector) handleChartReportExport(outputDirectoryPath string, framesCollection *frame.FramesCollection) error {
+	chartReportPath := path.Join(outputDirectoryPath, "chart-report.html")
+	chartReportFile, err := utils.CreateFileWithTree(chartReportPath)
+	if err != nil {
+		return fmt.Errorf("detector: failed to create the html chart report file: %w", err)
+	}
+
+	defer func() {
+		if err := chartReportFile.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	initializationOpts := charts.WithInitializationOpts(opts.Initialization{
+		Theme: types.ThemeWesteros,
+	})
+
+	titleOpts := charts.WithTitleOpts(opts.Title{
+		Title: "Video-Lightning-Detector",
+	})
+
+	chart := charts.NewScatter()
+	chart.SetGlobalOptions(initializationOpts, titleOpts)
+
+	frames := framesCollection.GetAll()
+
+	var (
+		xAxis           []int              = make([]int, 0, len(frames))
+		brightness      []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+		colorDiff       []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+		binaryThreshold []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+	)
+
+	for frameIndex, frame := range frames {
+		xAxis = append(xAxis, frameIndex+1)
+
+		brightness = append(brightness, opts.ScatterData{
+			Value: frame.Brightness,
+		})
+
+		colorDiff = append(colorDiff, opts.ScatterData{
+			Value: frame.ColorDifference,
+		})
+
+		binaryThreshold = append(binaryThreshold, opts.ScatterData{
+			Value: frame.BinaryThresholdDifference,
+		})
+	}
+
+	chart.SetXAxis(xAxis)
+	chart.AddSeries("Brightness", brightness)
+	chart.AddSeries("Color difference", colorDiff)
+	chart.AddSeries("Binary threshold", binaryThreshold)
+
+	if err := chart.Render(chartReportFile); err != nil {
+		return fmt.Errorf("detector: failed to render the chart the the report file: %w", err)
 	}
 
 	return nil

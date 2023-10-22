@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Krzysztofz01/video-lightning-detector/development/resources/project-image-video-lightning-detector.png" width="400">
+</p>
+
 # video-lightning-detector
 [![Go Reference](https://pkg.go.dev/badge/github.com/Krzysztofz01/video-lightning-detector.svg)](https://pkg.go.dev/github.com/Krzysztofz01/video-lightning-detector)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Krzysztofz01/video-lightning-detector)](https://goreportcard.com/report/github.com/Krzysztofz01/video-lightning-detector)
@@ -43,6 +47,7 @@ Flags:
   -b, --brightness-threshold float                    The threshold used to determine the brightness of the frame. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average
   -c, --color-difference-threshold float              The threshold used to determine the difference between two neighbouring frames on the color basis. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average.
   -n, --denoise                                       Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.
+  -r, --export-chart-report                           Value indicating if the frames statistics chart in HTML format should be exported.
   -e, --export-csv-report                             Value indicating if the frames statistics report in CSV format should be exported.
   -j, --export-json-report                            Value indicating if the frames statistics report in JSON format should be exported.
   -h, --help                                          help for video-ligtning-detector
@@ -52,7 +57,6 @@ Flags:
   -s, --scaling-factor float                          The frame scaling factor used to downscale frames for better performance. (default 0.5)
   -f, --skip-frames-export                            Value indicating if the detected frames should not be exported.
   -v, --verbose                                       Enable verbose logging.
-
 ```
 
 # Example workflow
