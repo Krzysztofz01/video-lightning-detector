@@ -21,3 +21,25 @@ tasks:
     cmds:
       - go test -coverprofile {{.COVERAGE}} ./...
       - go tool cover -html {{.COVERAGE}}
+
+  profile:
+    desc: Run a profiling test with given arguments (task profile --args) and display the pprof tool results.
+    vars:
+      CPU_PROFILE: cpu.prof
+      MEM_PROFILE: mem.prof
+    cmds:
+      - VLD_CLI_ARGS="{{.CLI_ARGS}}" go test -v -cpuprofile {{.CPU_PROFILE}} -memprofile {{.MEM_PROFILE}} -run ^$ -bench .
+      - go tool pprof -text {{.CPU_PROFILE}}
+      - go tool pprof -text {{.MEM_PROFILE}}
+
+  profile:graph:
+    desc: Run a profiling test with given arguments (task profile:graph -- <args>) and create a visualization using Graphviz.
+    vars:
+      CPU_PROFILE: cpu.prof
+      MEM_PROFILE: mem.prof
+      CPU_PROFILE_GRAPH: cpu-profile.svg
+      MEM_PROFILE_GRAPH: mem-profile.svg
+    cmds:
+      - VLD_CLI_ARGS="{{.CLI_ARGS}}" go test -v -cpuprofile {{.CPU_PROFILE}} -memprofile {{.MEM_PROFILE}} -run ^$ -bench .
+      - go tool pprof -svg -output {{.CPU_PROFILE_GRAPH}} {{.CPU_PROFILE}}
+      - go tool pprof -svg -output {{.MEM_PROFILE_GRAPH}} {{.MEM_PROFILE}}

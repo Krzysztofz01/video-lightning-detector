@@ -27,7 +27,14 @@ bin
 *.jpg
 *.jpeg
 *.png
+!resources/*.png
 *.mp4
+test/
 
 # Coverage file
 coverage.out
+
+# Profiling files
+*.prof
+cpu-profile.svg
+mem-profile.svg

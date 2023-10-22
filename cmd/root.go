@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	nestedFormatter "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,7 +21,7 @@ var (
 	InputVideoPath      string
 	OutputDirectoryPath string
 	VerboseMode         bool
-	DetectorOptions     internal.DetectorOptions = internal.GetDefaultDetectorOptions()
+	DetectorOptions     detector.DetectorOptions = detector.GetDefaultDetectorOptions()
 )
 
 func init() {
@@ -36,35 +35,59 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&VerboseMode, "verbose", "v", false, "Enable verbose logging.")
 
-	rootCmd.PersistentFlags().Float64VarP(
-		&DetectorOptions.FrameDifferenceThreshold,
-		"difference-threshold", "d",
-		DetectorOptions.FrameDifferenceThreshold,
-		"The threshold used to determine the difference between two neighbouring frames.")
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.AutoThresholds,
+		"auto-thresholds", "a",
+		DetectorOptions.AutoThresholds,
+		"Automatically select thresholds for all parameters based on calculated frame values. Values that are explicitly provided will not be overwritten.")
 
 	rootCmd.PersistentFlags().Float64VarP(
-		&DetectorOptions.FrameBrightnessThreshold,
+		&DetectorOptions.ColorDifferenceDetectionThreshold,
+		"color-difference-threshold", "c",
+		DetectorOptions.ColorDifferenceDetectionThreshold,
+		"The threshold used to determine the difference between two neighbouring frames on the color basis. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average.")
+
+	rootCmd.PersistentFlags().Float64VarP(
+		&DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
+		"binary-threshold-difference-threshold", "t",
+		DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
+		"The threshold used to determine the difference between two neighbouring frames after the binary thresholding process. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average")
+
+	rootCmd.PersistentFlags().Float64VarP(
+		&DetectorOptions.BrightnessDetectionThreshold,
 		"brightness-threshold", "b",
-		DetectorOptions.FrameBrightnessThreshold,
-		"The threshold used to determine the brightness of the frame.")
+		DetectorOptions.BrightnessDetectionThreshold,
+		"The threshold used to determine the brightness of the frame. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average")
+
+	rootCmd.PersistentFlags().Int32VarP(
+		&DetectorOptions.MovingMeanResolution,
+		"moving-mean-resolution", "m",
+		DetectorOptions.MovingMeanResolution,
+		"The number of elements of the subset on which the moving mean will be calculated, for each parameter.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.SkipFramesExport,
 		"skip-frames-export", "f",
 		DetectorOptions.SkipFramesExport,
-		"Value indicating if the detected frams should not be exported.")
+		"Value indicating if the detected frames should not be exported.")
 
 	rootCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.SkipReportExport,
-		"skip-report-export", "r",
-		DetectorOptions.SkipReportExport,
-		"Value indicating if the frames statistics report should not be exported.")
+		&DetectorOptions.ExportCsvReport,
+		"export-csv-report", "e",
+		DetectorOptions.ExportCsvReport,
+		"Value indicating if the frames statistics report in CSV format should be exported.")
 
 	rootCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.SkipThresholdSuggestion,
-		"skip-threshold-suggestion", "t",
-		DetectorOptions.SkipThresholdSuggestion,
-		"Value indicating if the thresholds suggestion shoul not be calculated.")
+		&DetectorOptions.ExportJsonReport,
+		"export-json-report", "j",
+		DetectorOptions.ExportJsonReport,
+		"Value indicating if the frames statistics report in JSON format should be exported.")
+
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.ExportChartReport,
+		"export-chart-report", "r",
+		DetectorOptions.ExportChartReport,
+		"Value indicating if the frames statistics chart in HTML format should be exported.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.FrameScalingFactor,
@@ -72,41 +95,35 @@ func init() {
 		DetectorOptions.FrameScalingFactor,
 		"The frame scaling factor used to downscale frames for better performance.")
 
-	logrus.SetLevel(logrus.InfoLevel)
-	logrus.SetOutput(os.Stdout)
-	logrus.SetFormatter(&nestedFormatter.Formatter{
-		TimestampFormat:  "",
-		HideKeys:         true,
-		NoColors:         false,
-		NoFieldsColors:   false,
-		NoFieldsSpace:    false,
-		ShowFullLevel:    false,
-		NoUppercaseLevel: false,
-		TrimMessages:     false,
-		CallerFirst:      false,
-	})
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.Denoise,
+		"denoise", "n",
+		DetectorOptions.Denoise,
+		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
 }
 
 func Execute(args []string) {
 	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
-		logrus.Fatal(err.Error())
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	if VerboseMode {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
 
-	detector, err := internal.CreateDetector(DetectorOptions)
+	renderer := render.CreateRenderer(VerboseMode)
+	detectorInstance, err := detector.CreateDetector(renderer, DetectorOptions)
 	if err != nil {
 		return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
 	}
 
-	_, err = detector.Run(InputVideoPath, OutputDirectoryPath)
-	if err != nil {
-		logrus.Error(err)
+	if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath); err != nil {
 		return fmt.Errorf("cmd: detector run failed: %w", err)
 	}
 
