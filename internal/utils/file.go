@@ -22,6 +22,15 @@ func CreateFileWithTree(path string) (*os.File, error) {
 	return os.Create(path)
 }
 
+// Check if the given path is pointing to a existing file.
+func FileExists(path string) bool {
+	if file, err := os.Stat(path); (err != nil && os.IsNotExist(err)) || file.IsDir() {
+		return false
+	}
+
+	return true
+}
+
 // Create a new png file at the given path and encode the specified image into it.
 func ExportImageAsPng(path string, img image.Image) error {
 	if len(path) == 0 {

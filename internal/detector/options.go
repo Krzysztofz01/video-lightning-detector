@@ -17,6 +17,7 @@ type DetectorOptions struct {
 	SkipFramesExport                            bool
 	Denoise                                     bool
 	FrameScalingFactor                          float64
+	ImportPreanalyzed                           bool
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured

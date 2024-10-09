@@ -1,7 +1,6 @@
 package frame
 
 import (
-	"bytes"
 	"image/color"
 	"testing"
 
@@ -64,71 +63,4 @@ func TestFramesCollectionShouldNotGetNotExistingFrame(t *testing.T) {
 	frame, err := collection.Get(3)
 	assert.NotNil(t, err)
 	assert.Nil(t, frame)
-}
-
-func TestFramesCollectionShouldCalculateStatistics(t *testing.T) {
-	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.Black), 1)
-	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.White), 2)
-	collection := CreateNewFramesCollection(5)
-
-	err := collection.Append(frame1)
-	assert.Nil(t, err)
-
-	err = collection.Append(frame2)
-	assert.Nil(t, err)
-
-	statistics := collection.CalculateStatistics(50)
-
-	assert.Equal(t, statistics.BrightnessMean, 0.5)
-	assert.Equal(t, statistics.BrightnessStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BrightnessMax, 1.0)
-	assert.Equal(t, statistics.ColorDifferenceMean, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceMax, 1.0)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMean, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
-
-	cachedStatistics := collection.CalculateStatistics(50)
-
-	assert.Equal(t, cachedStatistics, statistics)
-	assert.Equal(t, statistics.BrightnessMean, 0.5)
-	assert.Equal(t, statistics.BrightnessStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BrightnessMax, 1.0)
-	assert.Equal(t, statistics.ColorDifferenceMean, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceMax, 1.0)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMean, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
-}
-
-func TestFramesCollectionShouldExportJsonReport(t *testing.T) {
-	buffer := &bytes.Buffer{}
-	assert.Zero(t, buffer.Len())
-
-	collection := CreateNewFramesCollection(5)
-	assert.NotNil(t, collection)
-
-	collection.Append(CreateNewFrame(mockImage(color.White), mockImage(color.White), 1))
-
-	err := collection.ExportJsonReport(buffer)
-	assert.Nil(t, err)
-
-	assert.NotZero(t, buffer.Len())
-}
-
-func TestFramesCollectionShouldExportCsvReport(t *testing.T) {
-	buffer := &bytes.Buffer{}
-	assert.Zero(t, buffer.Len())
-
-	collection := CreateNewFramesCollection(5)
-	assert.NotNil(t, collection)
-
-	collection.Append(CreateNewFrame(mockImage(color.White), mockImage(color.White), 1))
-
-	err := collection.ExportCsvReport(buffer)
-	assert.Nil(t, err)
-
-	assert.NotZero(t, buffer.Len())
 }

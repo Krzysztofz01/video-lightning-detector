@@ -112,6 +112,12 @@ func init() {
 		"confusion-matrix-actual-detections-expression",
 		DetectorOptions.ConfusionMatrixActualDetectionsExpression,
 		"Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14")
+
+	rootCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.ImportPreanalyzed,
+		"import-preanalyzed", "p",
+		DetectorOptions.ImportPreanalyzed,
+		"Value indicating the the the pre-analyzed frames should be imported from the previously exported JSON report.")
 }
 
 func Execute(args []string) {

@@ -54,7 +54,7 @@ type ConfusionMatrix struct {
 
 // Get the confusion matrix of binarty classified frame lightning detection. The confusion matrix is calculated via the
 // provided actual classified frame indices, prediction classified frame indices and total count of frames in the video
-func GetConfusionMatrix(actualClassifcationFrames, predictedClassificationFrames []int, totalCount int) ConfusionMatrix {
+func CreateConfusionMatrix(actualClassifcationFrames, predictedClassificationFrames []int, totalCount int) ConfusionMatrix {
 	actual := getTotalClassification(actualClassifcationFrames, totalCount)
 	predicted := getTotalClassification(predictedClassificationFrames, totalCount)
 

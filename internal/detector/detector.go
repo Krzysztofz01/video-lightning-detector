@@ -4,18 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"os"
 	"path"
-	"strconv"
 	"time"
 
 	vidio "github.com/AlexEidt/Vidio"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/export"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
-	"github.com/go-echarts/go-echarts/v2/charts"
-	"github.com/go-echarts/go-echarts/v2/opts"
-	"github.com/go-echarts/go-echarts/v2/types"
 )
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
@@ -51,55 +49,62 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 	runTime := time.Now()
 	detector.renderer.LogInfo("Starting the lightning hunt.")
 
-	frames, err := detector.performVideoAnalysis(inputVideoPath)
+	var frames *frame.FramesCollection
+
+	frames, err := detector.GetAnalyzedFrames(inputVideoPath, outputDirectoryPath)
 	if err != nil {
 		return fmt.Errorf("detector: video analysis stage failed: %w", err)
 	}
 
+	descriptiveStatistics := statistics.CreateDescriptiveStatistics(frames, int(detector.options.MovingMeanResolution))
+
 	if detector.options.AutoThresholds {
-		detector.applyAutoThresholds(frames)
+		detector.ApplyAutoThresholds(frames, descriptiveStatistics)
 	}
 
-	detector.performStatisticsLogging(frames)
-	detections := detector.performVideoDetection(frames)
+	detections := detector.PerformVideoDetection(frames, descriptiveStatistics)
 
-	if !detector.options.SkipFramesExport {
-		if err := detector.performFramesExport(inputVideoPath, outputDirectoryPath, detections); err != nil {
-			return fmt.Errorf("detector: failed to perform the detected frames images export: %w", err)
-		}
-	}
-
-	if detector.options.ExportCsvReport {
-		if err := detector.handleCsvReportExport(outputDirectoryPath, frames); err != nil {
-			return fmt.Errorf("detector: csv report export failed: %w", err)
-		}
-	}
-
-	if detector.options.ExportJsonReport {
-		if err := detector.handleJsonReportExport(outputDirectoryPath, frames); err != nil {
-			return fmt.Errorf("detector: json report export failed: %w", err)
-		}
-	}
-
-	if detector.options.ExportChartReport {
-		if err := detector.handleChartReportExport(outputDirectoryPath, frames); err != nil {
-			return fmt.Errorf("detector: chart report export failed: %w", err)
-		}
-	}
-
-	if detector.options.ExportConfusionMatrix {
-		if err := detector.handleConfusionMatrixExport(detections, frames); err != nil {
-			return fmt.Errorf("detector: confusion matrix export failed: %w", err)
-		}
+	if err := detector.PerformExports(inputVideoPath, outputDirectoryPath, frames, descriptiveStatistics, detections); err != nil {
+		return fmt.Errorf("detector: export stage failed: %w", err)
 	}
 
 	detector.renderer.LogInfo("Lightning hunting took: %s", time.Since(runTime))
 	return nil
 }
 
+// Helper function used to perform the analysis of the video frames. Depending on the options, this function will perform
+// the analysis or import the result of the previous analysis with a fallback to a standard analysis.
+func (detector *detector) GetAnalyzedFrames(inputVideoPath, outputDirectoryPath string) (*frame.FramesCollection, error) {
+	var (
+		frames         *frame.FramesCollection
+		wasPreanalzyed bool
+		err            error
+	)
+
+	if detector.options.ImportPreanalyzed {
+		frames, wasPreanalzyed, err = detector.ImportPreanalyzedFrames(outputDirectoryPath)
+		if err != nil {
+			return nil, fmt.Errorf("detector: failed to import the preanalyzed frames: %w", err)
+		}
+
+		if wasPreanalzyed {
+			detector.renderer.LogInfo("Importing the pre-analyzed frames data.")
+			return frames, nil
+		}
+
+		detector.renderer.LogWarning("No exported pre-analzyed frames JSON file found. Fallback to frames analysis.")
+	}
+
+	if frames, err = detector.PerformFramesAnalysis(inputVideoPath); err != nil {
+		return nil, fmt.Errorf("detector: failed to perform the frames analysis: %w", err)
+	} else {
+		return frames, nil
+	}
+}
+
 // Helper function used to iterate over the video frames in order to generate a collection of frames instances containing
 // processed values about given frames and neighbouring frames relations.
-func (detector *detector) performVideoAnalysis(inputVideoPath string) (*frame.FramesCollection, error) {
+func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (*frame.FramesCollection, error) {
 	videoAnalysisTime := time.Now()
 	detector.renderer.LogDebug("Starting the video analysis stage.")
 
@@ -151,15 +156,39 @@ func (detector *detector) performVideoAnalysis(inputVideoPath string) (*frame.Fr
 	return frames, nil
 }
 
+// Helper function used to import the pre-analyzed frames collection from the JSON export file.
+func (detector *detector) ImportPreanalyzedFrames(outputDirectoryPath string) (*frame.FramesCollection, bool, error) {
+	jsonFramesReportPath := path.Join(outputDirectoryPath, "frames-report.json")
+	if !utils.FileExists(jsonFramesReportPath) {
+		return nil, false, nil
+	}
+
+	jsonFramesReportFile, err := os.Open(jsonFramesReportPath)
+	if err != nil {
+		return nil, true, fmt.Errorf("detector: failed to open the json frames report with preanalyzed frames: %w", err)
+	}
+
+	defer func() {
+		if err := jsonFramesReportFile.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	if frames, err := frame.ImportFramesCollectionFromJson(jsonFramesReportFile); err != nil {
+		return nil, true, fmt.Errorf("detector: failed to import the json frames report with preanalyzed frames: %w", err)
+	} else {
+		return frames, true, nil
+	}
+}
+
 // Helper function used to auto-calculate the detection thresholds based on the frames and apply the threshold to the detector options
 // TODO: More versatile results could be achived using "moving standard deviation"???
 // TODO: Render thresholds in a table
-func (detector *detector) applyAutoThresholds(framesCollection *frame.FramesCollection) {
+func (detector *detector) ApplyAutoThresholds(framesCollection *frame.FramesCollection, ds statistics.DescriptiveStatistics) {
 	autoThresholdTime := time.Now()
 	detector.renderer.LogDebug("Starting the auto thresholds calculation stage.")
 
 	frames := framesCollection.GetAll()
-	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
 
 	var (
 		gDiffBrightnessValue float64 = 0
@@ -171,19 +200,19 @@ func (detector *detector) applyAutoThresholds(framesCollection *frame.FramesColl
 	)
 
 	for i := 0; i < len(frames); i += 1 {
-		diffBrightness := frames[i].Brightness - statistics.BrightnessMovingMean[i]
+		diffBrightness := frames[i].Brightness - ds.BrightnessMovingMean[i]
 		if diffBrightness > 0 {
 			gDiffBrightnessValue += diffBrightness
 			gDiffBrightnessCount += 1
 		}
 
-		diffColorDiff := frames[i].ColorDifference - statistics.ColorDifferenceMovingMean[i]
+		diffColorDiff := frames[i].ColorDifference - ds.ColorDifferenceMovingMean[i]
 		if diffColorDiff > 0 {
 			gDiffColorDiffValue += diffColorDiff
 			gDiffColorDiffCount += 1
 		}
 
-		diffBTDiff := frames[i].BinaryThresholdDifference - statistics.BinaryThresholdDifferenceMovingMean[i]
+		diffBTDiff := frames[i].BinaryThresholdDifference - ds.BinaryThresholdDifferenceMovingMean[i]
 		if diffBTDiff > 0 {
 			gDiffBTDiffValue += diffBTDiff
 			gDiffBTDiffCount += 1
@@ -224,14 +253,13 @@ func (detector *detector) applyAutoThresholds(framesCollection *frame.FramesColl
 }
 
 // Helper function used to filter out indecies representing frames wihich meet the requirement thresholds.
-func (detector *detector) performVideoDetection(framesCollection *frame.FramesCollection) []int {
+func (detector *detector) PerformVideoDetection(framesCollection *frame.FramesCollection, ds statistics.DescriptiveStatistics) []int {
 	videoDetectionTime := time.Now()
 	detector.renderer.LogDebug("Starting the video detection stage.")
 
 	detections := CreateDetectionBuffer()
 
 	frames := framesCollection.GetAll()
-	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
 
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video detection stage.", len(frames))
 
@@ -239,36 +267,36 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 		logPrefix := fmt.Sprintf("Frame: [%d/%d].", frameIndex+1, len(frames))
 		detector.renderer.LogDebug("%s Checking frame thresholds.", logPrefix)
 
-		if frame.Brightness < detector.options.BrightnessDetectionThreshold+statistics.BrightnessMovingMean[frameIndex] {
+		if frame.Brightness < detector.options.BrightnessDetectionThreshold+ds.BrightnessMovingMean[frameIndex] {
 			detector.renderer.LogDebug("%s Frame brightenss requirements not met. (%f < %f + %f)",
 				logPrefix,
 				frame.Brightness,
 				detector.options.BrightnessDetectionThreshold,
-				statistics.BrightnessMovingMean[frameIndex])
+				ds.BrightnessMovingMean[frameIndex])
 
 			detections.Append(frameIndex, false)
 			progressBarStep()
 			continue
 		}
 
-		if frame.ColorDifference < detector.options.ColorDifferenceDetectionThreshold+statistics.ColorDifferenceMovingMean[frameIndex] {
+		if frame.ColorDifference < detector.options.ColorDifferenceDetectionThreshold+ds.ColorDifferenceMovingMean[frameIndex] {
 			detector.renderer.LogDebug("%s Frame color difference requirements not met. (%f < %f + %f)",
 				logPrefix,
 				frame.ColorDifference,
 				detector.options.ColorDifferenceDetectionThreshold,
-				statistics.ColorDifferenceMovingMean[frameIndex])
+				ds.ColorDifferenceMovingMean[frameIndex])
 
 			detections.Append(frameIndex, false)
 			progressBarStep()
 			continue
 		}
 
-		if frame.BinaryThresholdDifference < detector.options.BinaryThresholdDifferenceDetectionThreshold+statistics.BinaryThresholdDifferenceMovingMean[frameIndex] {
+		if frame.BinaryThresholdDifference < detector.options.BinaryThresholdDifferenceDetectionThreshold+ds.BinaryThresholdDifferenceMovingMean[frameIndex] {
 			detector.renderer.LogDebug("%s Frame binary threshold difference requirements not met. (%f < %f + %f)",
 				logPrefix,
 				frame.BinaryThresholdDifference,
 				detector.options.BinaryThresholdDifferenceDetectionThreshold,
-				statistics.BinaryThresholdDifferenceMovingMean[frameIndex])
+				ds.BinaryThresholdDifferenceMovingMean[frameIndex])
 
 			detections.Append(frameIndex, false)
 			progressBarStep()
@@ -286,8 +314,94 @@ func (detector *detector) performVideoDetection(framesCollection *frame.FramesCo
 	return detections.Resolve()
 }
 
-// Helper function used to export frames which meet the requirement thresholds to png files.
-func (detector *detector) performFramesExport(inputVideoPath, outputDirectoryPath string, detections []int) error {
+// Helper function used to perform exports to varius formats selected via the options
+func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath string, fc *frame.FramesCollection, ds statistics.DescriptiveStatistics, detections []int) error {
+	if err := export.RenderDescriptiveStatistics(detector.renderer, ds); err != nil {
+		return fmt.Errorf("detector: failed to export descriptive statistics: %w", err)
+	}
+
+	if !detector.options.SkipFramesExport {
+		if err := detector.PerformFrameImagesExport(inputVideoPath, outputDirectoryPath, detections); err != nil {
+			return fmt.Errorf("detector: failed to perform the detected frames images export: %w", err)
+		}
+	}
+
+	if detector.options.ExportCsvReport {
+		csvSpinnerStop := detector.renderer.Spinner("Exporting reports in CSV format")
+		defer csvSpinnerStop()
+
+		if path, err := export.ExportCsvFrames(outputDirectoryPath, fc); err != nil {
+			return fmt.Errorf("detector: failed to export csv frames report: %w", err)
+		} else {
+			detector.renderer.LogInfo("Frames report in CSV format exported to: %s", path)
+		}
+
+		if path, err := export.ExportCsvDescriptiveStatistics(outputDirectoryPath, ds); err != nil {
+			return fmt.Errorf("detector: failed to export csv descriptive statistics report: %w", err)
+		} else {
+			detector.renderer.LogInfo("Descriptive statistics in CSV format exported to %s", path)
+		}
+
+		csvSpinnerStop()
+	}
+
+	if detector.options.ExportJsonReport {
+		jsonSpinnerStop := detector.renderer.Spinner("Exporting reports in JSON format")
+		defer jsonSpinnerStop()
+
+		if path, err := export.ExportJsonFrames(outputDirectoryPath, fc); err != nil {
+			return fmt.Errorf("detector: failed to export json frames report: %w", err)
+		} else {
+			detector.renderer.LogInfo("Frames report in JSON format exported to: %s", path)
+		}
+
+		if path, err := export.ExportJsonDescriptiveStatistics(outputDirectoryPath, ds); err != nil {
+			return fmt.Errorf("detector: failed to export json descriptive statistics report: %w", err)
+		} else {
+			detector.renderer.LogInfo("Descriptive statistics in JSON format exported to %s", path)
+		}
+
+		jsonSpinnerStop()
+	}
+
+	if detector.options.ExportChartReport {
+		chartSpinnerStop := detector.renderer.Spinner("Exporting chart report")
+		defer chartSpinnerStop()
+
+		if path, err := export.ExportFramesChart(outputDirectoryPath, fc); err != nil {
+			return fmt.Errorf("detector: failed to export the frames chart: %w", err)
+		} else {
+			detector.renderer.LogInfo("Frames chart exported to: %s", path)
+		}
+
+		chartSpinnerStop()
+	}
+
+	if detector.options.ExportConfusionMatrix {
+		confusionMatrixSpinnerStop := detector.renderer.Spinner("Exporting confusion matrix")
+		defer confusionMatrixSpinnerStop()
+
+		actualClassification, err := utils.ParseRangeExpression(detector.options.ConfusionMatrixActualDetectionsExpression)
+		if err != nil {
+			return fmt.Errorf("detector: failed to parse the confusion matrix actual detections range expression: %w", err)
+		}
+
+		detector.renderer.LogDebug("Frames used as actual detection classification: %v", actualClassification)
+
+		confusionMatrix := statistics.CreateConfusionMatrix(actualClassification, detections, fc.Count())
+
+		if err := export.RenderConfusionMatrix(detector.renderer, confusionMatrix); err != nil {
+			return fmt.Errorf("detector: failed to export the confusion matrix: %w", err)
+		}
+
+		confusionMatrixSpinnerStop()
+	}
+
+	return nil
+}
+
+// Helper function used to export frame images which meet the requirement thresholds to png files.
+func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirectoryPath string, detections []int) error {
 	framesExportTime := time.Now()
 	detector.renderer.LogDebug("Starting the frames export stage.")
 	detector.renderer.LogInfo("About to export %d frames.", len(detections))
@@ -322,210 +436,5 @@ func (detector *detector) performFramesExport(inputVideoPath, outputDirectoryPat
 
 	progressBarClose()
 	detector.renderer.LogDebug("Frames export stage finished. Stage took: %s", time.Since(framesExportTime))
-	return nil
-}
-
-// Helper function used to print out descriptive statistics aboout the frames collection
-func (detector *detector) performStatisticsLogging(framesCollection *frame.FramesCollection) {
-	statistics := framesCollection.CalculateStatistics(int(detector.options.MovingMeanResolution))
-
-	values := [][]string{
-		{"Frame brightness mean", strconv.FormatFloat(statistics.BrightnessMean, 'f', -1, 64)},
-		{"Frame brightness standard deviation", strconv.FormatFloat(statistics.BrightnessStandardDeviation, 'f', -1, 64)},
-		{"Frame brightness max", strconv.FormatFloat(statistics.BrightnessMax, 'f', -1, 64)},
-		{"Frame color difference mean", strconv.FormatFloat(statistics.ColorDifferenceMean, 'f', -1, 64)},
-		{"Frame color difference standard deviation", strconv.FormatFloat(statistics.ColorDifferenceStandardDeviation, 'f', -1, 64)},
-		{"Frame color difference max", strconv.FormatFloat(statistics.ColorDifferenceMax, 'f', -1, 64)},
-		{"Frame color binary threshold mean", strconv.FormatFloat(statistics.BinaryThresholdDifferenceMean, 'f', -1, 64)},
-		{"Frame color binary threshold standard deviation", strconv.FormatFloat(statistics.BinaryThresholdDifferenceStandardDeviation, 'f', -1, 64)},
-		{"Frame color binary threshold max", strconv.FormatFloat(statistics.BinaryThresholdDifferenceMax, 'f', -1, 64)},
-	}
-
-	detector.renderer.Table(values)
-}
-
-// Helper function used to export the frames collection report in the CSV format.
-func (detector *detector) handleCsvReportExport(outputDirectoryPath string, frames *frame.FramesCollection) error {
-	csvSpinnerStop := detector.renderer.Spinner("Exporting report in CSV format")
-	defer csvSpinnerStop()
-
-	csvFramesReportPath := path.Join(outputDirectoryPath, "frames-report.csv")
-	framesReportFile, err := utils.CreateFileWithTree(csvFramesReportPath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to create the csv frames report file: %w", err)
-	}
-
-	defer func() {
-		if err := framesReportFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	if err := frames.ExportCsvReport(framesReportFile); err != nil {
-		return fmt.Errorf("detector: failed to export the csv frames report: %w", err)
-	} else {
-		detector.renderer.LogInfo("Frames report in CSV format exported to: %s", csvFramesReportPath)
-	}
-
-	csvStatisticsReportPath := path.Join(outputDirectoryPath, "statistics-report.csv")
-	statisticsReportFile, err := utils.CreateFileWithTree(csvStatisticsReportPath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to create the csv statistics report file: %w", err)
-	}
-
-	defer func() {
-		if err := statisticsReportFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	statistics := frames.CalculateStatistics(int(detector.options.MovingMeanResolution))
-	if err := statistics.ExportCsvReport(statisticsReportFile); err != nil {
-		return fmt.Errorf("detector: failed to export the csv statistics report: %w", err)
-	} else {
-		detector.renderer.LogInfo("Statistics report in CSV format exported to: %s", csvStatisticsReportPath)
-	}
-
-	return nil
-}
-
-// Helper function used to export the frames collection report in the JSON format.
-func (detector *detector) handleJsonReportExport(outputDirectoryPath string, frames *frame.FramesCollection) error {
-	jsonSpinnerClose := detector.renderer.Spinner("Exporting the frames report in JSON format.")
-	defer jsonSpinnerClose()
-
-	jsonFramesReportPath := path.Join(outputDirectoryPath, "frames-report.json")
-	framesReportFile, err := utils.CreateFileWithTree(jsonFramesReportPath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to create the json frames report file: %w", err)
-	}
-
-	defer func() {
-		if err := framesReportFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	if err := frames.ExportJsonReport(framesReportFile); err != nil {
-		return fmt.Errorf("detector: failed to export the json frames report: %w", err)
-	} else {
-		detector.renderer.LogInfo("Frames report in JSON format exported to: %s", jsonFramesReportPath)
-	}
-
-	jsonStatisticsReportPath := path.Join(outputDirectoryPath, "statistics-report.json")
-	statisticsReportFile, err := utils.CreateFileWithTree(jsonStatisticsReportPath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to create the json statistics report file: %w", err)
-	}
-
-	defer func() {
-		if err := statisticsReportFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	statistics := frames.CalculateStatistics(int(detector.options.MovingMeanResolution))
-	if err := statistics.ExportJsonReport(statisticsReportFile); err != nil {
-		return fmt.Errorf("detector: failed to export the json statistics report: %w", err)
-	} else {
-		detector.renderer.LogInfo("Statistics report in JSON format exported to %s", jsonStatisticsReportPath)
-	}
-
-	return nil
-}
-
-func (detector *detector) handleChartReportExport(outputDirectoryPath string, framesCollection *frame.FramesCollection) error {
-	chartReportPath := path.Join(outputDirectoryPath, "chart-report.html")
-	chartReportFile, err := utils.CreateFileWithTree(chartReportPath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to create the html chart report file: %w", err)
-	}
-
-	defer func() {
-		if err := chartReportFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	initializationOpts := charts.WithInitializationOpts(opts.Initialization{
-		Theme: types.ThemeWesteros,
-	})
-
-	titleOpts := charts.WithTitleOpts(opts.Title{
-		Title: "Video-Lightning-Detector",
-	})
-
-	chart := charts.NewScatter()
-	chart.SetGlobalOptions(initializationOpts, titleOpts)
-
-	frames := framesCollection.GetAll()
-
-	var (
-		xAxis           []int              = make([]int, 0, len(frames))
-		brightness      []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
-		colorDiff       []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
-		binaryThreshold []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
-	)
-
-	for frameIndex, frame := range frames {
-		xAxis = append(xAxis, frameIndex+1)
-
-		brightness = append(brightness, opts.ScatterData{
-			Value: frame.Brightness,
-		})
-
-		colorDiff = append(colorDiff, opts.ScatterData{
-			Value: frame.ColorDifference,
-		})
-
-		binaryThreshold = append(binaryThreshold, opts.ScatterData{
-			Value: frame.BinaryThresholdDifference,
-		})
-	}
-
-	chart.SetXAxis(xAxis)
-	chart.AddSeries("Brightness", brightness)
-	chart.AddSeries("Color difference", colorDiff)
-	chart.AddSeries("Binary threshold", binaryThreshold)
-
-	if err := chart.Render(chartReportFile); err != nil {
-		return fmt.Errorf("detector: failed to render the chart the the report file: %w", err)
-	}
-
-	return nil
-}
-
-// NOTE: The confusion matrix can be calculated in collection like the statistics but we need to store the detection status in the frame
-func (detector *detector) handleConfusionMatrixExport(detections []int, framesCollection *frame.FramesCollection) error {
-	actualClassification, err := utils.ParseRangeExpression(detector.options.ConfusionMatrixActualDetectionsExpression)
-	if err != nil {
-		return fmt.Errorf("detector: failed to parse the confusion matrix actual detections range expression: %w", err)
-	}
-
-	detector.renderer.LogDebug("Frames used as actual detection classification: %v", actualClassification)
-
-	totalFrameCount := framesCollection.Count()
-
-	confusionMatrix := statistics.GetConfusionMatrix(actualClassification, detections, totalFrameCount)
-
-	detector.renderer.Table([][]string{
-		{"TP", "[True positive]", fmt.Sprintf("%f", confusionMatrix.Tp)},
-		{"TN", "[True negative]", fmt.Sprintf("%f", confusionMatrix.Tn)},
-		{"FP", "[False positive]", fmt.Sprintf("%f", confusionMatrix.Fp)},
-		{"FN", "[False negative]", fmt.Sprintf("%f", confusionMatrix.Fn)},
-		{"P", "[Positive]", fmt.Sprintf("%f", confusionMatrix.P)},
-		{"N", "[Negative]", fmt.Sprintf("%f", confusionMatrix.N)},
-		{"TPR", "[Sensitivity / Recall]", fmt.Sprintf("%f", confusionMatrix.Tpr)},
-		{"TNR", "[Specificity / SPC]", fmt.Sprintf("%f", confusionMatrix.Tnr)},
-		{"ACC", "[Accuracy]", fmt.Sprintf("%f", confusionMatrix.Acc)},
-		{"PPV", "[Precision]", fmt.Sprintf("%f", confusionMatrix.Ppv)},
-		{"NPV", "[Negative predictive value]", fmt.Sprintf("%f", confusionMatrix.Npv)},
-		{"FPR", "[False positive rate]", fmt.Sprintf("%f", confusionMatrix.Fpr)},
-		{"FNR", "[False negative rate]", fmt.Sprintf("%f", confusionMatrix.Fnr)},
-		{"LR+", "[Positive likehood ratio]", fmt.Sprintf("%f", confusionMatrix.Plr)},
-		{"LR-", "[Negative likehood ratio]", fmt.Sprintf("%f", confusionMatrix.Nlr)},
-		{"DOR", "[Diagnostic Odds ratio]", fmt.Sprintf("%f", confusionMatrix.Dor)},
-	})
-
 	return nil
 }

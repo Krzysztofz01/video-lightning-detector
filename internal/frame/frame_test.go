@@ -44,17 +44,6 @@ func TestShouldCreateNewFrameWithIdenticalNeighbour(t *testing.T) {
 	assert.Equal(t, 0.0, frame.BinaryThresholdDifference)
 }
 
-func TestShouldCorrectlyConvertFrameToBuffer(t *testing.T) {
-	a := mockImage(color.White)
-	b := mockImage(color.Black)
-
-	expected := []string{"2", "1", "1", "1"}
-
-	frame := CreateNewFrame(a, b, 2)
-
-	assert.Equal(t, expected, frame.ToBuffer())
-}
-
 func mockImage(c color.Color) image.Image {
 	width := 4
 	height := 4

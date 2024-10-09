@@ -3,7 +3,6 @@ package frame
 import (
 	"image"
 	"image/color"
-	"strconv"
 	"sync"
 
 	"github.com/Krzysztofz01/pimit"
@@ -101,15 +100,4 @@ func calculateFramesBinaryThresholdDifference(currentFrame, previousFrame image.
 
 	frameSize := currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
 	return float64(difference.Load()) / float64(frameSize)
-}
-
-// Convert the frame string buffer format accepted by the CSV encoder.
-func (frame *Frame) ToBuffer() []string {
-	buffer := make([]string, 0, 3)
-	buffer = append(buffer, strconv.Itoa(frame.OrdinalNumber))
-	buffer = append(buffer, strconv.FormatFloat(frame.Brightness, 'f', -1, 64))
-	buffer = append(buffer, strconv.FormatFloat(frame.ColorDifference, 'f', -1, 64))
-	buffer = append(buffer, strconv.FormatFloat(frame.BinaryThresholdDifference, 'f', -1, 64))
-
-	return buffer
 }
