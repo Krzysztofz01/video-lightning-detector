@@ -128,3 +128,8 @@ func (frames *FramesCollection) ExportCsvReport(file io.Writer) error {
 	csvWriter.Flush()
 	return nil
 }
+
+// Get the count of frames in the frame collection.
+func (frames *FramesCollection) Count() int {
+	return len(frames.Frames)
+}

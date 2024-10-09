@@ -11,6 +11,7 @@ import (
 	vidio "github.com/AlexEidt/Vidio"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
@@ -86,6 +87,12 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 		}
 	}
 
+	if detector.options.ExportConfusionMatrix {
+		if err := detector.handleConfusionMatrixExport(detections, frames); err != nil {
+			return fmt.Errorf("detector: confusion matrix export failed: %w", err)
+		}
+	}
+
 	detector.renderer.LogInfo("Lightning hunting took: %s", time.Since(runTime))
 	return nil
 }
@@ -119,7 +126,7 @@ func (detector *detector) performVideoAnalysis(inputVideoPath string) (*frame.Fr
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video analysis stage.", frameCount)
 
 	for video.Read() {
-		if utils.ScaleImage(frameCurrentBuffer, frameCurrent, detector.options.FrameScalingFactor); err != nil {
+		if err := utils.ScaleImage(frameCurrentBuffer, frameCurrent, detector.options.FrameScalingFactor); err != nil {
 			return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
 		}
 
@@ -484,6 +491,41 @@ func (detector *detector) handleChartReportExport(outputDirectoryPath string, fr
 	if err := chart.Render(chartReportFile); err != nil {
 		return fmt.Errorf("detector: failed to render the chart the the report file: %w", err)
 	}
+
+	return nil
+}
+
+// NOTE: The confusion matrix can be calculated in collection like the statistics but we need to store the detection status in the frame
+func (detector *detector) handleConfusionMatrixExport(detections []int, framesCollection *frame.FramesCollection) error {
+	actualClassification, err := utils.ParseRangeExpression(detector.options.ConfusionMatrixActualDetectionsExpression)
+	if err != nil {
+		return fmt.Errorf("detector: failed to parse the confusion matrix actual detections range expression: %w", err)
+	}
+
+	detector.renderer.LogDebug("Frames used as actual detection classification: %v", actualClassification)
+
+	totalFrameCount := framesCollection.Count()
+
+	confusionMatrix := statistics.GetConfusionMatrix(actualClassification, detections, totalFrameCount)
+
+	detector.renderer.Table([][]string{
+		{"TP", "[True positive]", fmt.Sprintf("%f", confusionMatrix.Tp)},
+		{"TN", "[True negative]", fmt.Sprintf("%f", confusionMatrix.Tn)},
+		{"FP", "[False positive]", fmt.Sprintf("%f", confusionMatrix.Fp)},
+		{"FN", "[False negative]", fmt.Sprintf("%f", confusionMatrix.Fn)},
+		{"P", "[Positive]", fmt.Sprintf("%f", confusionMatrix.P)},
+		{"N", "[Negative]", fmt.Sprintf("%f", confusionMatrix.N)},
+		{"TPR", "[Sensitivity / Recall]", fmt.Sprintf("%f", confusionMatrix.Tpr)},
+		{"TNR", "[Specificity / SPC]", fmt.Sprintf("%f", confusionMatrix.Tnr)},
+		{"ACC", "[Accuracy]", fmt.Sprintf("%f", confusionMatrix.Acc)},
+		{"PPV", "[Precision]", fmt.Sprintf("%f", confusionMatrix.Ppv)},
+		{"NPV", "[Negative predictive value]", fmt.Sprintf("%f", confusionMatrix.Npv)},
+		{"FPR", "[False positive rate]", fmt.Sprintf("%f", confusionMatrix.Fpr)},
+		{"FNR", "[False negative rate]", fmt.Sprintf("%f", confusionMatrix.Fnr)},
+		{"LR+", "[Positive likehood ratio]", fmt.Sprintf("%f", confusionMatrix.Plr)},
+		{"LR-", "[Negative likehood ratio]", fmt.Sprintf("%f", confusionMatrix.Nlr)},
+		{"DOR", "[Diagnostic Odds ratio]", fmt.Sprintf("%f", confusionMatrix.Dor)},
+	})
 
 	return nil
 }

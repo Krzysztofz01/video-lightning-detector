@@ -100,6 +100,18 @@ func init() {
 		"denoise", "n",
 		DetectorOptions.Denoise,
 		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
+
+	rootCmd.PersistentFlags().BoolVar(
+		&DetectorOptions.ExportConfusionMatrix,
+		"export-confusion-matrix",
+		DetectorOptions.ExportConfusionMatrix,
+		"Value indicating if the frames detection classification confusion matrix should be rendered.")
+
+	rootCmd.PersistentFlags().StringVar(
+		&DetectorOptions.ConfusionMatrixActualDetectionsExpression,
+		"confusion-matrix-actual-detections-expression",
+		DetectorOptions.ConfusionMatrixActualDetectionsExpression,
+		"Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14")
 }
 
 func Execute(args []string) {
