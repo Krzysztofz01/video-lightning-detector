@@ -25,7 +25,10 @@ func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection) (st
 	}()
 
 	initializationOpts := charts.WithInitializationOpts(opts.Initialization{
-		Theme: types.ThemeWesteros,
+		PageTitle: fmt.Sprintf("Video Lightning Detector [%s]", outputDirectoryPath),
+		Width:     "100vw",
+		Height:    "90vh",
+		Theme:     types.ThemeWesteros,
 	})
 
 	titleOpts := charts.WithTitleOpts(opts.Title{
