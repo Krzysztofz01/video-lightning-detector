@@ -39,7 +39,7 @@ func ExportJsonDescriptiveStatistics(outputDirectoryPath string, ds statistics.D
 	jsonDescriptiveStatisticsReportPath := path.Join(outputDirectoryPath, JsonDescriptiveStatisticsReportFilename)
 	statisticsReportFile, err := utils.CreateFileWithTree(jsonDescriptiveStatisticsReportPath)
 	if err != nil {
-		return "", fmt.Errorf("detector: failed to create the json descriptive statistics report file: %w", err)
+		return "", fmt.Errorf("export: failed to create the json descriptive statistics report file: %w", err)
 	}
 
 	defer func() {
@@ -55,6 +55,28 @@ func ExportJsonDescriptiveStatistics(outputDirectoryPath string, ds statistics.D
 	}
 
 	return jsonDescriptiveStatisticsReportPath, nil
+}
+
+func ExportJsonConfusionMatrix(outputDirectoryPath string, cm statistics.ConfusionMatrix) (string, error) {
+	jsonConfusionMatrixReportPath := path.Join(outputDirectoryPath, JsonConfusionMatrixReportFilename)
+	confusionMatrixReportFile, err := utils.CreateFileWithTree(jsonConfusionMatrixReportPath)
+	if err != nil {
+		return "", fmt.Errorf("export: failed to create the json confusion matrix report file: %w", err)
+	}
+
+	defer func() {
+		if err := confusionMatrixReportFile.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	encoder := createEncoder(confusionMatrixReportFile)
+
+	if err := encoder.Encode(cm); err != nil {
+		return "", fmt.Errorf("export: failed to encode the confusion matrix: %w", err)
+	}
+
+	return jsonConfusionMatrixReportPath, nil
 }
 
 func createEncoder(file *os.File) *json.Encoder {

@@ -103,6 +103,47 @@ func ExportCsvDescriptiveStatistics(outputDirectoryPath string, ds statistics.De
 	return csvDescriptiveStatisticsReportPath, nil
 }
 
+func ExportCsvConfusionMatrix(outputDirectoryPath string, cm statistics.ConfusionMatrix) (string, error) {
+	csvConfusionMatrixReportPath := path.Join(outputDirectoryPath, CsvConfusionMatrixReportFilename)
+	confusionMatrixReportFile, err := utils.CreateFileWithTree(csvConfusionMatrixReportPath)
+	if err != nil {
+		return "", fmt.Errorf("export: failed to create the csv confusion matrix report file: %w", err)
+	}
+
+	defer func() {
+		if err := confusionMatrixReportFile.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	writer := csv.NewWriter(confusionMatrixReportFile)
+
+	rows := [][]string{
+		{"Tp", strconv.FormatFloat(cm.Tp, 'f', -1, 64)},
+		{"Tn", strconv.FormatFloat(cm.Tn, 'f', -1, 64)},
+		{"Fp", strconv.FormatFloat(cm.Fp, 'f', -1, 64)},
+		{"Fn", strconv.FormatFloat(cm.Fn, 'f', -1, 64)},
+		{"P:", strconv.FormatFloat(cm.P, 'f', -1, 64)},
+		{"N:", strconv.FormatFloat(cm.N, 'f', -1, 64)},
+		{"Tpr", strconv.FormatFloat(cm.Tpr, 'f', -1, 64)},
+		{"Tnr", strconv.FormatFloat(cm.Tnr, 'f', -1, 64)},
+		{"Acc", strconv.FormatFloat(cm.Acc, 'f', -1, 64)},
+		{"Ppv", strconv.FormatFloat(cm.Ppv, 'f', -1, 64)},
+		{"Npv", strconv.FormatFloat(cm.Npv, 'f', -1, 64)},
+		{"Fpr", strconv.FormatFloat(cm.Fpr, 'f', -1, 64)},
+		{"Fnr", strconv.FormatFloat(cm.Fnr, 'f', -1, 64)},
+		{"Plr", strconv.FormatFloat(cm.Plr, 'f', -1, 64)},
+		{"Nlr", strconv.FormatFloat(cm.Nlr, 'f', -1, 64)},
+		{"Dor", strconv.FormatFloat(cm.Dor, 'f', -1, 64)},
+	}
+
+	if err := writer.WriteAll(rows); err != nil {
+		return "", fmt.Errorf("export: failed to write the confusion matrix rows to the csv file: %w", err)
+	}
+
+	return csvConfusionMatrixReportPath, nil
+}
+
 func valuesToCsvRow(leftPadding int, values ...float64) []string {
 	buffer := make([]string, 0, len(values)+leftPadding)
 	for index := 0; index < leftPadding; index += 1 {

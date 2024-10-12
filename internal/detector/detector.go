@@ -393,6 +393,16 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 		}
 	}
 
+	// TODO: Create only when needed
+	actualClassification, err := utils.ParseRangeExpression(detector.options.ConfusionMatrixActualDetectionsExpression)
+	if err != nil {
+		return fmt.Errorf("detector: failed to parse the confusion matrix actual detections range expression: %w", err)
+	}
+
+	detector.renderer.LogDebug("Frames used as actual detection classification: %v", actualClassification)
+
+	confusionMatrix := statistics.CreateConfusionMatrix(actualClassification, detections, fc.Count())
+
 	if detector.options.ExportCsvReport {
 		csvSpinnerStop := detector.renderer.Spinner("Exporting reports in CSV format")
 		defer csvSpinnerStop()
@@ -407,6 +417,12 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 			return fmt.Errorf("detector: failed to export csv descriptive statistics report: %w", err)
 		} else {
 			detector.renderer.LogInfo("Descriptive statistics in CSV format exported to %s", path)
+		}
+
+		if path, err := export.ExportCsvConfusionMatrix(outputDirectoryPath, confusionMatrix); err != nil {
+			return fmt.Errorf("detector: failed to export csv confusion matrix report: %w", err)
+		} else {
+			detector.renderer.LogInfo("Confusion matrix in CSV format exported to %s", path)
 		}
 
 		csvSpinnerStop()
@@ -428,6 +444,12 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 			detector.renderer.LogInfo("Descriptive statistics in JSON format exported to %s", path)
 		}
 
+		if path, err := export.ExportJsonConfusionMatrix(outputDirectoryPath, confusionMatrix); err != nil {
+			return fmt.Errorf("detector: failed to export json confusion matrix report: %w", err)
+		} else {
+			detector.renderer.LogInfo("Confusion matrix in JSON format exported to %s", path)
+		}
+
 		jsonSpinnerStop()
 	}
 
@@ -447,15 +469,6 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 	if detector.options.ExportConfusionMatrix {
 		confusionMatrixSpinnerStop := detector.renderer.Spinner("Exporting confusion matrix")
 		defer confusionMatrixSpinnerStop()
-
-		actualClassification, err := utils.ParseRangeExpression(detector.options.ConfusionMatrixActualDetectionsExpression)
-		if err != nil {
-			return fmt.Errorf("detector: failed to parse the confusion matrix actual detections range expression: %w", err)
-		}
-
-		detector.renderer.LogDebug("Frames used as actual detection classification: %v", actualClassification)
-
-		confusionMatrix := statistics.CreateConfusionMatrix(actualClassification, detections, fc.Count())
 
 		if err := export.RenderConfusionMatrix(detector.renderer, confusionMatrix); err != nil {
 			return fmt.Errorf("detector: failed to export the confusion matrix: %w", err)
