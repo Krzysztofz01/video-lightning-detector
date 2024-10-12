@@ -20,7 +20,7 @@ type DescriptiveStatistics struct {
 	BinaryThresholdDifferenceMax               float64   `json:"binary-threshold-difference-max"`
 }
 
-func CreateDescriptiveStatistics(fc *frame.FramesCollection, movingMeanResolution int) DescriptiveStatistics {
+func CreateDescriptiveStatistics(fc frame.FrameCollection, movingMeanResolution int) DescriptiveStatistics {
 	frames := fc.GetAll()
 
 	var (

@@ -1,6 +1,16 @@
 package detector
 
-import "github.com/Krzysztofz01/video-lightning-detector/internal/utils"
+import (
+	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+
+	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
+)
+
+const FrameCollectionCacheFilename string = "video-lightning-detector.cache"
 
 // Structure representing the options for the detector.
 type DetectorOptions struct {
@@ -49,6 +59,35 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 	}
 
 	return true, ""
+}
+
+func (options *DetectorOptions) GetChecksum() (string, error) {
+	optionsCopy := *options
+
+	if optionsCopy.AutoThresholds {
+		defaultOptions := GetDefaultDetectorOptions()
+		optionsCopy.BinaryThresholdDifferenceDetectionThreshold = defaultOptions.BinaryThresholdDifferenceDetectionThreshold
+		optionsCopy.BrightnessDetectionThreshold = defaultOptions.BrightnessDetectionThreshold
+		optionsCopy.ColorDifferenceDetectionThreshold = defaultOptions.ColorDifferenceDetectionThreshold
+	}
+
+	encodingBuffer := new(bytes.Buffer)
+	encoder := json.NewEncoder(encodingBuffer)
+
+	if err := encoder.Encode(optionsCopy); err != nil {
+		return "", fmt.Errorf("detector: failed to encode the options to json: %w", err)
+	}
+
+	hash := sha1.New()
+	if _, err := hash.Write(encodingBuffer.Bytes()); err != nil {
+		return "", fmt.Errorf("detector: failed to hash the ddetector options: %w", err)
+	}
+
+	str := hex.EncodeToString(hash.Sum(nil))
+
+	fmt.Printf("Hash: %s | %s\n", str, encodingBuffer.String())
+
+	return str, nil
 }
 
 // Return the default detector options.

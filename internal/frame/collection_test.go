@@ -8,14 +8,14 @@ import (
 )
 
 func TestFramesCollectionShouldCreate(t *testing.T) {
-	collection := CreateNewFramesCollection(5)
+	collection := CreateNewFrameCollection(5)
 
 	assert.NotNil(t, collection)
 }
 
 func TestFramesCollectionShouldAppendFrame(t *testing.T) {
 	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1)
-	collection := CreateNewFramesCollection(5)
+	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(frame)
 
@@ -23,7 +23,7 @@ func TestFramesCollectionShouldAppendFrame(t *testing.T) {
 }
 
 func TestFramesCollectionShouldNotAppendNilFrame(t *testing.T) {
-	collection := CreateNewFramesCollection(5)
+	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(nil)
 
@@ -33,7 +33,7 @@ func TestFramesCollectionShouldNotAppendNilFrame(t *testing.T) {
 func TestFramesCollectionShouldNotAppendFrameWithSameOrdinalNumber(t *testing.T) {
 	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2)
 	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.Black), 2)
-	collection := CreateNewFramesCollection(5)
+	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(frame1)
 	assert.Nil(t, err)
@@ -45,7 +45,7 @@ func TestFramesCollectionShouldNotAppendFrameWithSameOrdinalNumber(t *testing.T)
 func TestFramesCollectionShouldGetFrame(t *testing.T) {
 	frameNumber := 2
 	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), frameNumber)
-	collection := CreateNewFramesCollection(5)
+	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(frame)
 	assert.Nil(t, err)
@@ -58,7 +58,7 @@ func TestFramesCollectionShouldGetFrame(t *testing.T) {
 }
 
 func TestFramesCollectionShouldNotGetNotExistingFrame(t *testing.T) {
-	collection := CreateNewFramesCollection(5)
+	collection := CreateNewFrameCollection(5)
 
 	frame, err := collection.Get(3)
 	assert.NotNil(t, err)

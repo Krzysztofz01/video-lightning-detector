@@ -1,15 +1,15 @@
 package export
 
 const (
-	JsonFramesReportFilename                string = ""
-	JsonDescriptiveStatisticsReportFilename string = ""
+	JsonFramesReportFilename                string = "frames-report.json"
+	JsonDescriptiveStatisticsReportFilename string = "statistics-report.json"
 )
 
 const (
-	CsvFramesReportFilename                string = ""
-	CsvDescriptiveStatisticsReportFilename string = ""
+	CsvFramesReportFilename                string = "frames-report.csv"
+	CsvDescriptiveStatisticsReportFilename string = "statistics-report.csv"
 )
 
 const (
-	FramesChartFilename string = ""
+	FramesChartFilename string = "chart-report.html"
 )

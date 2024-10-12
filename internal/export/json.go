@@ -11,7 +11,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-func ExportJsonFrames(outputDirectoryPath string, fc *frame.FramesCollection) (string, error) {
+func ExportJsonFrames(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
 	jsonFramesReportPath := path.Join(outputDirectoryPath, JsonFramesReportFilename)
 	framesReportFile, err := utils.CreateFileWithTree(jsonFramesReportPath)
 	if err != nil {

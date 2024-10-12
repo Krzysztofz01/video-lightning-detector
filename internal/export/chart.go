@@ -11,7 +11,7 @@ import (
 	"github.com/go-echarts/go-echarts/v2/types"
 )
 
-func ExportFramesChart(outputDirectoryPath string, fc *frame.FramesCollection) (string, error) {
+func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
 	framesChartPath := path.Join(outputDirectoryPath, FramesChartFilename)
 	framesChartFile, err := utils.CreateFileWithTree(framesChartPath)
 	if err != nil {

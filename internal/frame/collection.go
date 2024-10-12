@@ -2,101 +2,154 @@ package frame
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"sync"
 )
 
 // Structure representing the collection of video frames.
-type FramesCollection struct {
-	Frames map[int]*Frame
-	mu     sync.RWMutex
+type FrameCollection interface {
+	Append(frame *Frame) error
+	Get(frameOrdinalNumber int) (*Frame, error)
+	GetAll() []*Frame
+	Count() int
+	ExportCache(file io.Writer, checksum string) error
+}
+
+type frameCollection struct {
+	Frames  []*Frame
+	Checked bool
+	mu      sync.RWMutex
+}
+
+type frameCollectionCache struct {
+	Checksum string   `json:"checksum"`
+	Frames   []*Frame `json:"frames"`
 }
 
 // Create a new frames collection with a given capacity of frames.
-func CreateNewFramesCollection(frames int) *FramesCollection {
-	return &FramesCollection{
-		Frames: make(map[int]*Frame, frames),
-		mu:     sync.RWMutex{},
+func CreateNewFrameCollection(frames int) FrameCollection {
+	return &frameCollection{
+		Frames:  make([]*Frame, frames),
+		Checked: false,
+		mu:      sync.RWMutex{},
 	}
 }
 
-// Create a new frames collection from a json with pre-analized frames data.
-func ImportFramesCollectionFromJson(file io.Reader) (*FramesCollection, error) {
-	var decodedFrames []*Frame
+func ImportCachedFrameCollection(file io.Reader) (fc FrameCollection, checksum string, err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			fc = nil
+			checksum = ""
+			err = fmt.Errorf("frame: failed to create the frame collection from the provided frames: %s", err)
+		}
+	}()
 
 	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&decodedFrames); err != nil {
-		return nil, fmt.Errorf("frame: failed to decode the frames collection json: %w", err)
+
+	var fcc frameCollectionCache
+	if err = decoder.Decode(&fcc); err != nil {
+		return nil, "", fmt.Errorf("frame: failed to decode the frame collection cached: %w", err)
 	}
 
-	frames := make(map[int]*Frame, len(decodedFrames))
-	for index, frame := range decodedFrames {
-		frames[index+1] = frame
+	fc = &frameCollection{
+		Frames:  fcc.Frames,
+		Checked: false,
+		mu:      sync.RWMutex{},
 	}
 
-	return &FramesCollection{
-		Frames: frames,
-		mu:     sync.RWMutex{},
-	}, nil
+	// NOTE: Call GetAll() to perform the internal order validation and mark frame collection as checked
+	fc.GetAll()
+
+	return fc, fcc.Checksum, err
 }
 
-// Add a new frame to the frames collection.
-func (frames *FramesCollection) Append(frame *Frame) error {
+func (fc *frameCollection) Append(frame *Frame) error {
 	if frame == nil {
-		return errors.New("frame: can not appenda nil frame to the frames collection")
+		return fmt.Errorf("frame: provided frame to append is nil")
 	}
 
-	frames.mu.Lock()
-	defer frames.mu.Unlock()
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 
-	if _, exists := frames.Frames[frame.OrdinalNumber]; exists {
-		return errors.New("frame: frame with a given ordinal number already exists")
+	frameIndex := frame.OrdinalNumber - 1
+
+	if frameIndex < 0 || frameIndex >= len(fc.Frames) {
+		return fmt.Errorf("frame: frame ordinal number does not fit the frame collection capacity")
 	}
 
-	frames.Frames[frame.OrdinalNumber] = frame
+	if storedFrame := fc.Frames[frameIndex]; storedFrame != nil {
+		return fmt.Errorf("frame: frame with given ordinal number is already in the collection")
+	}
+
+	fc.Frames[frameIndex] = frame
+	fc.Checked = false
 	return nil
 }
 
-// Get a frame from the frames collection by the frame ordinal number.
-func (frames *FramesCollection) Get(frameNumber int) (*Frame, error) {
-	frames.mu.RLock()
-	defer frames.mu.RUnlock()
+func (fc *frameCollection) Get(frameOrdinalNumber int) (*Frame, error) {
+	fc.mu.RLock()
+	defer fc.mu.RUnlock()
 
-	if frame, exists := frames.Frames[frameNumber]; !exists {
-		return nil, errors.New("frame: frame with a given ordinal number does not exist")
+	frameIndex := frameOrdinalNumber - 1
+
+	if frameIndex < 0 || frameIndex >= len(fc.Frames) {
+		return nil, fmt.Errorf("frame: frame ordinal number is out of the frame collection capacity range")
+	}
+
+	if frame := fc.Frames[frameIndex]; frame == nil {
+		return nil, fmt.Errorf("frame: frame with given ordinal number is not present in the frames collection")
 	} else {
 		return frame, nil
 	}
 }
 
-// Get all frames sorted by the frame ordinal number.
-// TODO: Add tests
-func (frames *FramesCollection) GetAll() []*Frame {
-	frames.mu.RLock()
-	defer frames.mu.RUnlock()
+func (fc *frameCollection) GetAll() []*Frame {
+	fc.mu.RLock()
+	defer fc.mu.RUnlock()
 
-	return frames.mapFramesToSlice()
-}
+	if !fc.Checked {
+		for index, frame := range fc.Frames {
+			if frame == nil {
+				panic("frame: missing frame found in the collection")
+			}
 
-// Get all frames sorted by the frame ordinal nubmer. This function does not lock and should only be used intrnaly by the FramesCollection
-func (frames *FramesCollection) mapFramesToSlice() []*Frame {
-	values := make([]*Frame, len(frames.Frames))
-	for index := 0; index < len(frames.Frames); index += 1 {
-		frameNumber := index + 1
-		frame, ok := frames.Frames[frameNumber]
-		if !ok {
-			panic("frame: missing frame spotted during frames iteration")
+			if index+1 != frame.OrdinalNumber {
+				panic("frame: out of order frame found in the collection")
+			}
 		}
-
-		values[index] = frame
 	}
 
-	return values
+	return fc.Frames
 }
 
-// Get the count of frames in the frame collection.
-func (frames *FramesCollection) Count() int {
-	return len(frames.Frames)
+func (fc *frameCollection) Count() int {
+	fc.mu.RLock()
+	defer fc.mu.RUnlock()
+
+	return len(fc.Frames)
+}
+
+func (fc *frameCollection) ExportCache(file io.Writer, checksum string) (err error) {
+	fc.mu.RLock()
+	defer fc.mu.RUnlock()
+
+	defer func() {
+		if err := recover(); err != nil {
+			err = fmt.Errorf("frame: failed to encode the frame collection due to incorrect data: %s", err)
+		}
+	}()
+
+	encoder := json.NewEncoder(file)
+
+	fcc := frameCollectionCache{
+		Checksum: checksum,
+		Frames:   fc.Frames,
+	}
+
+	if err := encoder.Encode(fcc); err != nil {
+		return fmt.Errorf("frame: failed to encode the frame collection frames to cache: %w", err)
+	}
+
+	return nil
 }
