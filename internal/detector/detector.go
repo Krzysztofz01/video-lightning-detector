@@ -463,7 +463,7 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 		chartSpinnerStop := detector.renderer.Spinner("Exporting chart report")
 		defer chartSpinnerStop()
 
-		if path, err := export.ExportFramesChart(outputDirectoryPath, fc); err != nil {
+		if path, err := export.ExportFramesChart(outputDirectoryPath, fc, ds); err != nil {
 			return fmt.Errorf("detector: failed to export the frames chart: %w", err)
 		} else {
 			detector.renderer.LogInfo("Frames chart exported to: %s", path)
@@ -499,13 +499,13 @@ func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirecto
 
 	defer video.Close()
 
+	progressBarStep, progressBarClose := detector.renderer.Progress("Video frames export stage.", len(detections))
+
 	// TODO: Limit for large detections
 	frames, err := video.ReadFrames(detections...)
 	if err != nil {
 		return fmt.Errorf("detector: failed to read the specified frames from the video: %w", err)
 	}
-
-	progressBarStep, progressBarClose := detector.renderer.Progress("Video frames export stage.", len(detections))
 
 	for index, frame := range frames {
 		frameIndex := detections[index]

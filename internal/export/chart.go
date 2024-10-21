@@ -5,13 +5,14 @@ import (
 	"path"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/go-echarts/go-echarts/v2/types"
 )
 
-func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
+func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection, ds statistics.DescriptiveStatistics) (string, error) {
 	framesChartPath := path.Join(outputDirectoryPath, FramesChartFilename)
 	framesChartFile, err := utils.CreateFileWithTree(framesChartPath)
 	if err != nil {
@@ -41,10 +42,11 @@ func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection) (st
 	frames := fc.GetAll()
 
 	var (
-		xAxis           []int              = make([]int, 0, len(frames))
-		brightness      []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
-		colorDiff       []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
-		binaryThreshold []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+		xAxis                []int              = make([]int, 0, len(frames))
+		brightness           []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+		brightnessMovingMean []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+		colorDiff            []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
+		binaryThreshold      []opts.ScatterData = make([]opts.ScatterData, 0, len(frames))
 	)
 
 	for frameIndex, frame := range frames {
@@ -52,6 +54,11 @@ func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection) (st
 
 		brightness = append(brightness, opts.ScatterData{
 			Value: frame.Brightness,
+		})
+
+		brightnessMovingMeanValue := ds.BrightnessMovingMean[frameIndex]
+		brightnessMovingMean = append(brightnessMovingMean, opts.ScatterData{
+			Value: brightnessMovingMeanValue,
 		})
 
 		colorDiff = append(colorDiff, opts.ScatterData{
@@ -65,6 +72,7 @@ func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection) (st
 
 	chart.SetXAxis(xAxis)
 	chart.AddSeries("Brightness", brightness)
+	chart.AddSeries("Brightness moving mean", brightnessMovingMean)
 	chart.AddSeries("Color difference", colorDiff)
 	chart.AddSeries("Binary threshold", binaryThreshold)
 
