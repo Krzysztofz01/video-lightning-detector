@@ -1,11 +1,9 @@
 package detector
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
+	"strconv"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
@@ -62,32 +60,34 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 }
 
 func (options *DetectorOptions) GetChecksum() (string, error) {
-	optionsCopy := *options
-
-	if optionsCopy.AutoThresholds {
-		defaultOptions := GetDefaultDetectorOptions()
-		optionsCopy.BinaryThresholdDifferenceDetectionThreshold = defaultOptions.BinaryThresholdDifferenceDetectionThreshold
-		optionsCopy.BrightnessDetectionThreshold = defaultOptions.BrightnessDetectionThreshold
-		optionsCopy.ColorDifferenceDetectionThreshold = defaultOptions.ColorDifferenceDetectionThreshold
-	}
-
-	encodingBuffer := new(bytes.Buffer)
-	encoder := json.NewEncoder(encodingBuffer)
-
-	if err := encoder.Encode(optionsCopy); err != nil {
-		return "", fmt.Errorf("detector: failed to encode the options to json: %w", err)
-	}
-
 	hash := sha1.New()
-	if _, err := hash.Write(encodingBuffer.Bytes()); err != nil {
-		return "", fmt.Errorf("detector: failed to hash the ddetector options: %w", err)
+
+	if !options.AutoThresholds {
+		binaryThresholdStr := strconv.FormatFloat(options.BinaryThresholdDifferenceDetectionThreshold, 'f', -1, 64)
+		hash.Write([]byte(binaryThresholdStr))
+
+		brightnessThresholdStr := strconv.FormatFloat(options.BrightnessDetectionThreshold, 'f', -1, 64)
+		hash.Write([]byte(brightnessThresholdStr))
+
+		colorDifferenceStr := strconv.FormatFloat(options.ColorDifferenceDetectionThreshold, 'f', -1, 64)
+		hash.Write([]byte(colorDifferenceStr))
 	}
 
-	str := hex.EncodeToString(hash.Sum(nil))
+	movingMeanResolutionStr := strconv.FormatInt(int64(options.MovingMeanResolution), 10)
+	hash.Write([]byte(movingMeanResolutionStr))
 
-	fmt.Printf("Hash: %s | %s\n", str, encodingBuffer.String())
+	if options.Denoise {
+		hash.Write([]byte{0xff})
+	} else {
+		hash.Write([]byte{0x00})
+	}
 
-	return str, nil
+	framesScalingFactorStr := strconv.FormatFloat(options.FrameScalingFactor, 'f', -1, 64)
+	hash.Write([]byte(framesScalingFactorStr))
+
+	hashHex := hex.EncodeToString(hash.Sum(nil))
+
+	return hashHex, nil
 }
 
 // Return the default detector options.
