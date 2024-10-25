@@ -463,7 +463,16 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 		chartSpinnerStop := detector.renderer.Spinner("Exporting chart report")
 		defer chartSpinnerStop()
 
-		if path, err := export.ExportFramesChart(outputDirectoryPath, fc, ds); err != nil {
+		path, err := export.ExportFramesChart(
+			outputDirectoryPath,
+			fc,
+			ds,
+			detections,
+			detector.options.BrightnessDetectionThreshold,
+			detector.options.ColorDifferenceDetectionThreshold,
+			detector.options.BinaryThresholdDifferenceDetectionThreshold)
+
+		if err != nil {
 			return fmt.Errorf("detector: failed to export the frames chart: %w", err)
 		} else {
 			detector.renderer.LogInfo("Frames chart exported to: %s", path)
