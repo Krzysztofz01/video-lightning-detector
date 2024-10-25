@@ -80,3 +80,12 @@ func MinInt(x, y int) int {
 		return y
 	}
 }
+
+// Divide a by b and return fallback for zero-division
+func Div(a, b, fallback float64) float64 {
+	if b == 0 {
+		return fallback
+	}
+
+	return a / b
+}

@@ -132,9 +132,8 @@ func ExportCsvConfusionMatrix(outputDirectoryPath string, cm statistics.Confusio
 		{"Npv", strconv.FormatFloat(cm.Npv, 'f', -1, 64)},
 		{"Fpr", strconv.FormatFloat(cm.Fpr, 'f', -1, 64)},
 		{"Fnr", strconv.FormatFloat(cm.Fnr, 'f', -1, 64)},
-		{"Plr", strconv.FormatFloat(cm.Plr, 'f', -1, 64)},
-		{"Nlr", strconv.FormatFloat(cm.Nlr, 'f', -1, 64)},
-		{"Dor", strconv.FormatFloat(cm.Dor, 'f', -1, 64)},
+		{"Mcc", strconv.FormatFloat(cm.Mcc, 'f', -1, 64)},
+		{"Fs", strconv.FormatFloat(cm.Fs, 'f', -1, 64)},
 	}
 
 	if err := writer.WriteAll(rows); err != nil {

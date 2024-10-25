@@ -1,6 +1,11 @@
 package statistics
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+
+	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
+)
 
 type ConfusionMatrix struct {
 	// TP - True positive
@@ -42,14 +47,11 @@ type ConfusionMatrix struct {
 	// FNR - False negative rate
 	Fnr float64
 
-	// LR+ - Positive likehood ratio
-	Plr float64
+	// MCC - Matthews correlation coefficient
+	Mcc float64
 
-	// LR- - Negative likehood ratio
-	Nlr float64
-
-	// DOR - Diagnostic Odds ratio
-	Dor float64
+	// F-Score
+	Fs float64
 }
 
 // Get the confusion matrix of binarty classified frame lightning detection. The confusion matrix is calculated via the
@@ -78,6 +80,9 @@ func CreateConfusionMatrix(actualClassifcationFrames, predictedClassificationFra
 		return a && !p
 	})
 
+	tpr := utils.Div(tp, (tp + fn), 0) // tp / (tp + fn)
+	ppv := utils.Div(tp, (tp + fp), 0) // tp / (tp + fp)
+
 	return ConfusionMatrix{
 		Tp:  tp,
 		Tn:  tn,
@@ -85,16 +90,15 @@ func CreateConfusionMatrix(actualClassifcationFrames, predictedClassificationFra
 		Fn:  fn,
 		P:   tp + fn,
 		N:   tn + fp,
-		Tpr: tp / (tp + fn),
-		Tnr: tn / (fp + tn),
-		Acc: (tp + tn) / (tp + fn + tn + fp),
-		Ppv: tp / (tp + fp),
-		Npv: tn / (tn + fn),
-		Fpr: fp / (fp + tn),
-		Fnr: fp / (tp + fn),
-		Plr: (tp * (fp + tn)) / (fp * (tp + fn)),
-		Nlr: (fn * (fp + tn)) / (tn * (tp + fn)),
-		Dor: (tp * tn) / (fp * fn),
+		Tpr: tpr,
+		Tnr: utils.Div(tn, (fp + tn), 0),                  // tn / (fp + tn),
+		Acc: utils.Div((tp + tn), (tp + fn + tn + fp), 0), // (tp + tn) / (tp + fn + tn + fp),
+		Ppv: ppv,
+		Npv: utils.Div(tn, (tn + fn), 0),                                               // tn / (tn + fn),
+		Fpr: utils.Div(fp, (fp + tn), 0),                                               // fp / (fp + tn),
+		Fnr: utils.Div(fp, (tp + fn), 0),                                               // fp / (tp + fn),
+		Mcc: utils.Div((tp*tn - fp*fn), math.Sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)), 0), // (tp*tn - fp*fn) / math.Sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)),
+		Fs:  2 * utils.Div((ppv*tpr), (ppv+tpr), 0),                                    // 2 * ((ppv * tpr) / (ppv + tpr))
 	}
 }
 

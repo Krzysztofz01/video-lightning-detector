@@ -39,9 +39,8 @@ func RenderConfusionMatrix(r render.Renderer, cm statistics.ConfusionMatrix) err
 		{"NPV", "[Negative predictive value]", fmt.Sprintf("%f", cm.Npv)},
 		{"FPR", "[False positive rate]", fmt.Sprintf("%f", cm.Fpr)},
 		{"FNR", "[False negative rate]", fmt.Sprintf("%f", cm.Fnr)},
-		{"LR+", "[Positive likehood ratio]", fmt.Sprintf("%f", cm.Plr)},
-		{"LR-", "[Negative likehood ratio]", fmt.Sprintf("%f", cm.Nlr)},
-		{"DOR", "[Diagnostic Odds ratio]", fmt.Sprintf("%f", cm.Dor)},
+		{"MCC", "[Matthews correlation coefficient]", fmt.Sprintf("%f", cm.Mcc)},
+		{"FS", "[F-Score]", fmt.Sprintf("%f", cm.Fs)},
 	})
 
 	return nil
