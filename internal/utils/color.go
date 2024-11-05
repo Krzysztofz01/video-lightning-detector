@@ -55,7 +55,32 @@ func GetColorBrightness(c color.Color) float64 {
 	}
 }
 
-// Calculate the difference between two colors represented as a value from zero to one using the mean of RGB components difference.
+func GetColorBrightnessApprox(c color.Color) float64 {
+	rgba := ColorToRgba(c)
+	lR := linearRgbComponentLookup[rgba.R]
+	lG := linearRgbComponentLookup[rgba.G]
+	lB := linearRgbComponentLookup[rgba.B]
+
+	luminance := 0.2126*lR + 0.7152*lG + 0.0722*lB
+	if luminance <= 0.008856 {
+		return (luminance * 903.3) / 100.0
+	} else {
+		return (luminanceRangeCubeRoot(luminance)*116.0 - 16.0) / 100.0
+	}
+}
+
+func luminanceRangeCubeRoot(x float64) float64 {
+	reg := (-0.358955950652834 * x * x) + (0.934309346877746 * x) + 0.414814427166639
+
+	for i := 0; i < 3; i += 1 {
+		regp2 := reg * reg
+		reg = reg - ((regp2*reg)-x)/(3*regp2)
+	}
+
+	return reg
+}
+
+// Calculate the difference between two colors represented as a value frocwdm zero to one using the mean of RGB components difference.
 func GetColorDifference(a, b color.Color) float64 {
 	aRgba := ColorToRgba(a)
 	bRgba := ColorToRgba(b)

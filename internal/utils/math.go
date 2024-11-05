@@ -40,6 +40,33 @@ func MovingMean(x []float64, position, bias int) float64 {
 	return nominator / denominator
 }
 
+// TODO: Add docs and tests
+func MovingMeanStdDev(x []float64, position, bias int) (float64, float64) {
+	if len(x) == 0 {
+		panic("utils: can not calcualte the mean of an empty set")
+	}
+
+	if position >= len(x) {
+		panic("utils: the position is out of bounds of the value set")
+	}
+
+	mean := MovingMean(x, position, bias)
+
+	nominator := 0.0
+	denominator := 0.0
+
+	for index := position - bias; index <= position+bias; index += 1 {
+		if index >= 0 && index < len(x) {
+			nominator += (x[index] - mean) * (x[index] - mean)
+			denominator += 1
+		}
+	}
+
+	stdDev := math.Sqrt(nominator / denominator)
+
+	return mean, stdDev
+}
+
 // Calculate the population standard deviation value of the provided set. Panic if the value set is empty.
 func StandardDeviation(x []float64) float64 {
 	if len(x) == 0 {

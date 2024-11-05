@@ -2,6 +2,7 @@ package utils
 
 import (
 	"image/color"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,6 +107,23 @@ func TestShouldGetColorBrightness(t *testing.T) {
 
 	for color, expected := range cases {
 		actual := GetColorBrightness(color)
+
+		assert.InDelta(t, expected, actual, delta)
+	}
+}
+
+func TestLuminanceRangeCubicRootShouldCalculatePreciseValuesInCorrectRange(t *testing.T) {
+	const (
+		min        = 16.0 / 116.0
+		max        = 1.0
+		iterations = 10000
+		step       = (max - min) / float64(iterations)
+		delta      = 1e-11
+	)
+
+	for x := min; x < max; x += step {
+		expected := math.Cbrt(x)
+		actual := luminanceRangeCubeRoot(x)
 
 		assert.InDelta(t, expected, actual, delta)
 	}
