@@ -3,7 +3,6 @@ package frame
 import (
 	"image"
 	"image/color"
-	"sync"
 
 	"github.com/Krzysztofz01/pimit"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
@@ -27,77 +26,35 @@ type Frame struct {
 }
 
 // Create a new frame instance by providing the current and previous frame images and the ordinal number of the frame.
-func CreateNewFrame(currentFrame, previousFrame image.Image, ordinalNumber int) *Frame {
-	frame := &Frame{
-		OrdinalNumber: ordinalNumber,
+func CreateNewFrame(currentFrame, previousFrame image.Image, ordinalNumber int, binaryThresholdParam float64) *Frame {
+	var (
+		brightness    *atomic.Float64 = atomic.NewFloat64(0.0)
+		cDifference   *atomic.Float64 = atomic.NewFloat64(0)
+		btcDifference *atomic.Int32   = atomic.NewInt32(0)
+	)
+
+	pimit.ParallelRead(currentFrame, func(x, y int, currentColor color.Color) {
+		brightness.Add(utils.GetColorBrightness(currentColor))
+
+		if ordinalNumber > 1 {
+			previousColor := previousFrame.At(x, y)
+
+			cDifference.Add(utils.GetColorDifference(currentColor, previousColor))
+
+			thresholdCurrent := utils.BinaryThreshold(currentColor, binaryThresholdParam)
+			thresholdPrevious := utils.BinaryThreshold(previousColor, binaryThresholdParam)
+			if thresholdCurrent != thresholdPrevious {
+				btcDifference.Add(1)
+			}
+		}
+	})
+
+	frameSize := float64(currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy())
+
+	return &Frame{
+		OrdinalNumber:             ordinalNumber,
+		ColorDifference:           cDifference.Load() / frameSize,
+		BinaryThresholdDifference: float64(btcDifference.Load()) / frameSize,
+		Brightness:                brightness.Load() / frameSize,
 	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(3)
-
-	go func() {
-		defer wg.Done()
-
-		frame.Brightness = calculateFrameBrightness(currentFrame)
-	}()
-
-	go func() {
-		defer wg.Done()
-		if ordinalNumber == 1 {
-			frame.ColorDifference = 0.0
-			return
-		}
-
-		frame.ColorDifference = calculateFramesColorDifference(currentFrame, previousFrame)
-	}()
-
-	go func() {
-		defer wg.Done()
-		if ordinalNumber == 1 {
-			frame.BinaryThresholdDifference = 0.0
-			return
-		}
-
-		frame.BinaryThresholdDifference = calculateFramesBinaryThresholdDifference(currentFrame, previousFrame)
-	}()
-
-	wg.Wait()
-	return frame
-}
-
-func calculateFrameBrightness(currentFrame image.Image) float64 {
-	brightness := atomic.NewFloat64(0.0)
-	pimit.ParallelRead(currentFrame, func(_, _ int, c color.Color) {
-		brightness.Add(utils.GetColorBrightness(c))
-	})
-
-	frameSize := currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
-	return brightness.Load() / float64(frameSize)
-}
-
-func calculateFramesColorDifference(currentFrame, previousFrame image.Image) float64 {
-	difference := atomic.NewFloat64(0.0)
-	pimit.ParallelRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
-		previousFrameColor := previousFrame.At(x, y)
-
-		difference.Add(utils.GetColorDifference(currentFrameColor, previousFrameColor))
-	})
-
-	frameSize := currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
-	return difference.Load() / float64(frameSize)
-}
-
-func calculateFramesBinaryThresholdDifference(currentFrame, previousFrame image.Image) float64 {
-	difference := atomic.NewInt32(0)
-	pimit.ParallelRead(currentFrame, func(x, y int, currentFrameColor color.Color) {
-		thresholdCurrent := utils.BinaryThreshold(currentFrameColor, BinaryThresholdParam)
-		thresholdPrevious := utils.BinaryThreshold(previousFrame.At(x, y), BinaryThresholdParam)
-
-		if thresholdCurrent != thresholdPrevious {
-			difference.Add(1)
-		}
-	})
-
-	frameSize := currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
-	return float64(difference.Load()) / float64(frameSize)
 }

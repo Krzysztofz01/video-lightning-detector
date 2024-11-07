@@ -12,7 +12,7 @@ func TestShouldCreateNewFirstFrame(t *testing.T) {
 	a := mockImage(color.White)
 	b := mockImage(color.Black)
 
-	frame := CreateNewFrame(a, b, 1)
+	frame := CreateNewFrame(a, b, 1, BinaryThresholdParam)
 
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)
@@ -24,7 +24,7 @@ func TestShouldCreateNewFrameWithDifferentNeighbour(t *testing.T) {
 	a := mockImage(color.White)
 	b := mockImage(color.Black)
 
-	frame := CreateNewFrame(a, b, 2)
+	frame := CreateNewFrame(a, b, 2, BinaryThresholdParam)
 
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)
@@ -36,7 +36,7 @@ func TestShouldCreateNewFrameWithIdenticalNeighbour(t *testing.T) {
 	a := mockImage(color.White)
 	b := mockImage(color.White)
 
-	frame := CreateNewFrame(a, b, 2)
+	frame := CreateNewFrame(a, b, 2, BinaryThresholdParam)
 
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)

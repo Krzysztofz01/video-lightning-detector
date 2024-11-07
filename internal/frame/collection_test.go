@@ -14,7 +14,7 @@ func TestFramesCollectionShouldCreate(t *testing.T) {
 }
 
 func TestFramesCollectionShouldAppendFrame(t *testing.T) {
-	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1)
+	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam)
 	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(frame)
@@ -31,8 +31,8 @@ func TestFramesCollectionShouldNotAppendNilFrame(t *testing.T) {
 }
 
 func TestFramesCollectionShouldNotAppendFrameWithSameOrdinalNumber(t *testing.T) {
-	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2)
-	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.Black), 2)
+	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
+	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.Black), 2, BinaryThresholdParam)
 	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(frame1)
@@ -44,7 +44,7 @@ func TestFramesCollectionShouldNotAppendFrameWithSameOrdinalNumber(t *testing.T)
 
 func TestFramesCollectionShouldGetFrame(t *testing.T) {
 	frameNumber := 2
-	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), frameNumber)
+	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), frameNumber, BinaryThresholdParam)
 	collection := CreateNewFrameCollection(5)
 
 	err := collection.Append(frame)

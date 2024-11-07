@@ -147,7 +147,7 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 			}
 		}
 
-		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber)
+		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber, frame.BinaryThresholdParam)
 		frames.Append(frame)
 
 		detector.renderer.LogDebug("Frame: [%d/%d]. Brightness: %f ColorDiff: %f BTDiff: %f", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference)
