@@ -73,8 +73,8 @@ func (options *DetectorOptions) GetChecksum() (string, error) {
 		hash.Write([]byte(colorDifferenceStr))
 	}
 
-	movingMeanResolutionStr := strconv.FormatInt(int64(options.MovingMeanResolution), 10)
-	hash.Write([]byte(movingMeanResolutionStr))
+	// movingMeanResolutionStr := strconv.FormatInt(int64(options.MovingMeanResolution), 10)
+	// hash.Write([]byte(movingMeanResolutionStr))
 
 	if options.Denoise {
 		hash.Write([]byte{0xff})
