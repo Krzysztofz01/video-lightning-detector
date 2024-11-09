@@ -45,6 +45,13 @@ func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection, ds 
 		Title: "Video-Lightning-Detector",
 	})
 
+	tooltipOpts := charts.WithTooltipOpts(opts.Tooltip{
+		Show:      true,
+		Trigger:   "item",
+		TriggerOn: "click",
+		Enterable: false,
+	})
+
 	zoomOpts := charts.WithDataZoomOpts(opts.DataZoom{
 		Type: "inside",
 	})
@@ -52,10 +59,10 @@ func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection, ds 
 	animationOpts := charts.WithAnimation()
 
 	chart := charts.NewScatter()
-	chart.SetGlobalOptions(initializationOpts, titleOpts, zoomOpts, animationOpts)
+	chart.SetGlobalOptions(initializationOpts, titleOpts, zoomOpts, animationOpts, tooltipOpts)
 
 	lineChart := charts.NewLine()
-	lineChart.SetGlobalOptions(initializationOpts, titleOpts, zoomOpts, animationOpts)
+	lineChart.SetGlobalOptions(initializationOpts, titleOpts, zoomOpts, animationOpts, tooltipOpts)
 
 	frames := fc.GetAll()
 
