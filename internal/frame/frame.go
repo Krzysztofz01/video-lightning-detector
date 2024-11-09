@@ -11,7 +11,7 @@ import (
 
 const (
 	// TODO: Implement different threshold for day/night. The brightness value can be used as the determinant.
-	BinaryThresholdParam float64 = 0.784313725
+	BinaryThresholdParam float64 = 200.0 / 255.0
 )
 
 // Strucutre representing a single video frame and its calculated parameters.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"math"
 	"os"
 	"path"
 	"time"
@@ -493,6 +494,42 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 	}
 
 	return nil
+}
+
+// NOTE: Experimental sampling of binary threshold from recording
+func (detector *detector) SampleBinaryThreshold(inputVideoPath string) (float64, error) {
+	video, err := vidio.NewVideo(inputVideoPath)
+	if err != nil {
+		return 0, fmt.Errorf("detector: failed to open the video file for the binary threshold sampling stage: %w", err)
+	}
+
+	defer video.Close()
+
+	var (
+		frames      int     = video.Frames()
+		fps         float64 = video.FPS()
+		duration    float64 = float64(frames) / fps
+		sampleCount int     = int(math.Max(1.43*math.Log(duration/60)-0.64, 1))
+		framesStep  int     = frames / sampleCount
+	)
+
+	var sampleFrameIndexes []int = make([]int, 0, sampleCount)
+	for sampleIndex := 0; sampleIndex < sampleCount; sampleIndex += 1 {
+		sampleFrameIndexes = append(sampleFrameIndexes, sampleIndex*framesStep)
+	}
+
+	sampleFrames, err := video.ReadFrames(sampleFrameIndexes...)
+	if err != nil {
+		return 0, fmt.Errorf("detector: failed to read the specified frames from the video: %w", err)
+	}
+
+	var thresholdSum float64 = 0
+	for _, sampleFrame := range sampleFrames {
+		thresholdSum += utils.Otsu(sampleFrame)
+
+	}
+
+	return thresholdSum / float64(sampleCount), nil
 }
 
 // Helper function used to export frame images which meet the requirement thresholds to png files.
