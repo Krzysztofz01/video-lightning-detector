@@ -57,8 +57,8 @@ type ConfusionMatrix struct {
 // Get the confusion matrix of binarty classified frame lightning detection. The confusion matrix is calculated via the
 // provided actual classified frame indices, prediction classified frame indices and total count of frames in the video
 func CreateConfusionMatrix(actualClassifcationFrames, predictedClassificationFrames []int, totalCount int) ConfusionMatrix {
-	actual := getTotalClassification(actualClassifcationFrames, totalCount)
-	predicted := getTotalClassification(predictedClassificationFrames, totalCount)
+	actual := getTotalClassification(actualClassifcationFrames, totalCount, func(i int) int { return i - 1 })
+	predicted := getTotalClassification(predictedClassificationFrames, totalCount, nil)
 
 	// TP - True positive
 	tp := evalMeasure(actual, predicted, func(a, p bool) bool {
@@ -102,10 +102,18 @@ func CreateConfusionMatrix(actualClassifcationFrames, predictedClassificationFra
 	}
 }
 
-func getTotalClassification(classifiedIndices []int, totalCount int) []bool {
+func getTotalClassification(classifiedIndices []int, totalCount int, translate func(int) int) []bool {
 	classification := make([]bool, totalCount)
 
 	for _, classifiedFrame := range classifiedIndices {
+		if translate != nil {
+			classifiedFrame = translate(classifiedFrame)
+
+			if classifiedFrame < 0 {
+				panic("statistics: invalid indices translation lead to unexpected value")
+			}
+		}
+
 		classification[classifiedFrame-1] = true
 	}
 
