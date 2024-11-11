@@ -250,71 +250,101 @@ func (detector *detector) ExportPreanalyzedFrames(fc frame.FrameCollection, outp
 }
 
 // Helper function used to auto-calculate the detection thresholds based on the frames and apply the threshold to the detector options
-// TODO: More versatile results could be achived using "moving standard deviation"???
-// TODO: Render thresholds in a table
-func (detector *detector) ApplyAutoThresholds(framesCollection frame.FrameCollection, ds statistics.DescriptiveStatistics) {
+func (detector *detector) ApplyAutoThresholds(fc frame.FrameCollection, ds statistics.DescriptiveStatistics) {
 	autoThresholdTime := time.Now()
 	detector.renderer.LogDebug("Starting the auto thresholds calculation stage.")
 
-	frames := framesCollection.GetAll()
+	frames := fc.GetAll()
 
-	var (
-		gDiffBrightnessValue float64 = 0
-		gDiffBrightnessCount int     = 0
-		gDiffColorDiffValue  float64 = 0
-		gDiffColorDiffCount  int     = 0
-		gDiffBTDiffValue     float64 = 0
-		gDiffBTDiffCount     int     = 0
+	const (
+		brightnessDiffCoefficient   float64 = 1.0
+		brightnessStdDevCoefficient float64 = 0.0
+		colorDiffDiffCoefficient    float64 = 1.0
+		colorDiffStdDevCoefficient  float64 = 0.0
+		btDiffDiffCoefficient       float64 = 0.25
+		btDiffStdDevCoefficient     float64 = 0.15
 	)
 
-	for i := 0; i < len(frames); i += 1 {
-		diffBrightness := frames[i].Brightness - ds.BrightnessMovingMean[i]
-		if diffBrightness > 0 {
-			gDiffBrightnessValue += diffBrightness
-			gDiffBrightnessCount += 1
+	var (
+		brightnessMeanDiffSum float64 = 0.0
+		brightnessStdDevSum   float64 = 0.0
+		brightnessCount       int     = 0
+		colorDiffMeanDiffSum  float64 = 0.0
+		colorDiffStdDevSum    float64 = 0.0
+		colorDiffCount        int     = 0
+		btDiffMeanDiffSum     float64 = 0.0
+		btDiffStdDevSum       float64 = 0.0
+		btDiffCount           int     = 0
+	)
+
+	for frameIndex, frame := range frames {
+		if brightnessDiff := frame.Brightness - ds.BrightnessMovingMean[frameIndex]; brightnessDiff > 0 {
+			brightnessMeanDiffSum += brightnessDiff
+			brightnessStdDevSum += ds.BrightnessMovingStdDev[frameIndex]
+			brightnessCount += 1
 		}
 
-		diffColorDiff := frames[i].ColorDifference - ds.ColorDifferenceMovingMean[i]
-		if diffColorDiff > 0 {
-			gDiffColorDiffValue += diffColorDiff
-			gDiffColorDiffCount += 1
+		if colorDiff := frame.ColorDifference - ds.ColorDifferenceMovingMean[frameIndex]; colorDiff > 0 {
+			colorDiffMeanDiffSum += colorDiff
+			colorDiffStdDevSum += ds.ColorDifferenceMovingStdDev[frameIndex]
+			colorDiffCount += 1
 		}
 
-		diffBTDiff := frames[i].BinaryThresholdDifference - ds.BinaryThresholdDifferenceMovingMean[i]
-		if diffBTDiff > 0 {
-			gDiffBTDiffValue += diffBTDiff
-			gDiffBTDiffCount += 1
+		if btDiff := frame.BinaryThresholdDifference - ds.BinaryThresholdDifferenceMovingMean[frameIndex]; btDiff > 0 {
+			btDiffMeanDiffSum += btDiff
+			btDiffStdDevSum += ds.BinaryThresholdDifferenceMovingStdDev[frameIndex]
+			btDiffCount += 1
 		}
 	}
 
-	gDiffBrightnessValue /= float64(gDiffBrightnessCount)
-	gDiffColorDiffValue /= float64(gDiffColorDiffCount)
-	gDiffBTDiffValue /= float64(gDiffBTDiffCount)
+	var brightnessThreshold float64
+	if brightnessCount == 0 {
+		brightnessThreshold = 0
+	} else {
+		countf := float64(brightnessCount)
+		brightnessThreshold = brightnessDiffCoefficient*brightnessMeanDiffSum/countf + brightnessStdDevCoefficient*brightnessStdDevSum/countf
+	}
+
+	var colorDifferenceThreshold float64
+	if colorDiffCount == 0 {
+		colorDifferenceThreshold = 0
+	} else {
+		countf := float64(colorDiffCount)
+		colorDifferenceThreshold = colorDiffDiffCoefficient*colorDiffMeanDiffSum/countf + colorDiffStdDevCoefficient*colorDiffStdDevSum/countf
+	}
+
+	var binaryThresholdDifferenceThreshold float64
+	if btDiffCount == 0 {
+		binaryThresholdDifferenceThreshold = 0
+	} else {
+		countf := float64(btDiffCount)
+		binaryThresholdDifferenceThreshold = btDiffDiffCoefficient*btDiffMeanDiffSum/countf + btDiffStdDevCoefficient*btDiffStdDevSum/countf
+	}
 
 	defaultOptions := GetDefaultDetectorOptions()
 
 	if defaultOptions.BrightnessDetectionThreshold == defaultOptions.BrightnessDetectionThreshold {
-		detector.options.BrightnessDetectionThreshold = gDiffBrightnessValue
+		detector.options.BrightnessDetectionThreshold = brightnessThreshold
 	} else {
 		detector.renderer.LogWarning("The brightness detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
 			detector.options.BrightnessDetectionThreshold,
-			gDiffBrightnessValue)
+			brightnessThreshold)
 	}
 
 	if defaultOptions.ColorDifferenceDetectionThreshold == defaultOptions.ColorDifferenceDetectionThreshold {
-		detector.options.ColorDifferenceDetectionThreshold = gDiffColorDiffValue
+		detector.options.ColorDifferenceDetectionThreshold = colorDifferenceThreshold
 	} else {
 		detector.renderer.LogWarning("The color difference detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
 			detector.options.ColorDifferenceDetectionThreshold,
-			gDiffColorDiffValue)
+			colorDifferenceThreshold)
 	}
 
 	if defaultOptions.BinaryThresholdDifferenceDetectionThreshold == defaultOptions.BinaryThresholdDifferenceDetectionThreshold {
-		detector.options.BinaryThresholdDifferenceDetectionThreshold = gDiffBTDiffValue
+		detector.options.BinaryThresholdDifferenceDetectionThreshold = binaryThresholdDifferenceThreshold
 	} else {
 		detector.renderer.LogWarning("The binary threshold detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
 			detector.options.BinaryThresholdDifferenceDetectionThreshold,
-			gDiffBTDiffValue)
+			binaryThresholdDifferenceThreshold)
 	}
 
 	detector.renderer.LogDebug("Auto thresholds calculation stage finished. Stage took: %s", time.Since(autoThresholdTime))
@@ -325,61 +355,30 @@ func (detector *detector) PerformVideoDetection(framesCollection frame.FrameColl
 	videoDetectionTime := time.Now()
 	detector.renderer.LogDebug("Starting the video detection stage.")
 
-	detections := CreateDetectionBuffer()
+	detectionBuffer := CreateDetectionBuffer()
 
 	frames := framesCollection.GetAll()
 
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video detection stage.", len(frames))
+	defer progressBarClose()
 
 	for frameIndex, frame := range frames {
-		logPrefix := fmt.Sprintf("Frame: [%d/%d].", frameIndex+1, len(frames))
-		detector.renderer.LogDebug("%s Checking frame thresholds.", logPrefix)
+		var (
+			brightnessClassified bool = frame.Brightness >= detector.options.BrightnessDetectionThreshold+ds.BrightnessMovingMean[frameIndex]
+			colorDiffClassified  bool = frame.ColorDifference >= detector.options.ColorDifferenceDetectionThreshold+ds.ColorDifferenceMovingMean[frameIndex]
+			btDiffClassified     bool = frame.BinaryThresholdDifference >= detector.options.BinaryThresholdDifferenceDetectionThreshold+ds.BinaryThresholdDifferenceMovingMean[frameIndex]
+		)
 
-		if frame.Brightness < detector.options.BrightnessDetectionThreshold+ds.BrightnessMovingMean[frameIndex] {
-			detector.renderer.LogDebug("%s Frame brightenss requirements not met. (%f < %f + %f)",
-				logPrefix,
-				frame.Brightness,
-				detector.options.BrightnessDetectionThreshold,
-				ds.BrightnessMovingMean[frameIndex])
+		// TODO: Verbose logging
 
-			detections.Append(frameIndex, false)
-			progressBarStep()
-			continue
-		}
-
-		if frame.ColorDifference < detector.options.ColorDifferenceDetectionThreshold+ds.ColorDifferenceMovingMean[frameIndex] {
-			detector.renderer.LogDebug("%s Frame color difference requirements not met. (%f < %f + %f)",
-				logPrefix,
-				frame.ColorDifference,
-				detector.options.ColorDifferenceDetectionThreshold,
-				ds.ColorDifferenceMovingMean[frameIndex])
-
-			detections.Append(frameIndex, false)
-			progressBarStep()
-			continue
-		}
-
-		if frame.BinaryThresholdDifference < detector.options.BinaryThresholdDifferenceDetectionThreshold+ds.BinaryThresholdDifferenceMovingMean[frameIndex] {
-			detector.renderer.LogDebug("%s Frame binary threshold difference requirements not met. (%f < %f + %f)",
-				logPrefix,
-				frame.BinaryThresholdDifference,
-				detector.options.BinaryThresholdDifferenceDetectionThreshold,
-				ds.BinaryThresholdDifferenceMovingMean[frameIndex])
-
-			detections.Append(frameIndex, false)
-			progressBarStep()
-			continue
-		}
-
-		detector.renderer.LogInfo("%s Frame meets the threshold requirements.", logPrefix)
-		detections.Append(frameIndex, true)
+		detectionBuffer.Append(frameIndex, brightnessClassified, colorDiffClassified, btDiffClassified)
 
 		progressBarStep()
 	}
 
-	progressBarClose()
 	detector.renderer.LogDebug("Video detection stage finished. Stage took: %s", time.Since(videoDetectionTime))
-	return detections.Resolve()
+
+	return detectionBuffer.ResolveClassifiedIndex()
 }
 
 // Helper function used to perform exports to varius formats selected via the options

@@ -7,9 +7,9 @@ import (
 )
 
 func TestDetectionBufferShouldCreate(t *testing.T) {
-	detection := CreateDetectionBuffer()
+	buffer := CreateDetectionBuffer()
 
-	assert.NotNil(t, detection)
+	assert.NotNil(t, buffer)
 }
 
 func TestDetectionBufferShouldCorrectlyResolveAppendedValues(t *testing.T) {
@@ -33,32 +33,21 @@ func TestDetectionBufferShouldCorrectlyResolveAppendedValues(t *testing.T) {
 		{[]bool{false, true, true, true}, []int{1, 2, 3}},
 		{[]bool{true, false, true, true}, []int{0, 1, 2, 3}},
 		{[]bool{true, true, true, true}, []int{0, 1, 2, 3}},
+		{[]bool{false, false, true, true, false}, []int{2, 3}},
+		{[]bool{false, true, true, true, false}, []int{1, 2, 3}},
+		{[]bool{true, false, true, true, false}, []int{0, 1, 2, 3}},
+		{[]bool{true, true, true, true, false}, []int{0, 1, 2, 3}},
 	}
 
 	for _, c := range cases {
-		detection := CreateDetectionBuffer()
+		buffer := CreateDetectionBuffer()
 		for frameIndex, detected := range c.detections {
-			detection.Append(frameIndex, detected)
+			buffer.Append(frameIndex, detected, detected, detected)
 		}
 
-		actual := detection.Resolve()
+		actual := buffer.ResolveClassifiedIndex()
 
 		assert.NotNil(t, actual)
 		assert.Equal(t, c.expected, actual)
 	}
-}
-
-func TestDetectionBufferShouldNotStoreDuplicatesOnAppend(t *testing.T) {
-	detections := []bool{false, true, false, true, false}
-	expected := []int{1, 2, 3}
-
-	detection := CreateDetectionBuffer()
-	for frameIndex, detected := range detections {
-		detection.Append(frameIndex, detected)
-	}
-
-	actual := detection.Resolve()
-
-	assert.NotNil(t, actual)
-	assert.Equal(t, expected, actual)
 }

@@ -26,6 +26,7 @@ type DetectorOptions struct {
 	Denoise                                     bool
 	FrameScalingFactor                          float64
 	ImportPreanalyzed                           bool
+	BinarySegmentationThreshold                 float64
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
