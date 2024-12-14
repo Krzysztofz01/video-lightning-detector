@@ -89,13 +89,15 @@ func (detector *detector) GetAnalyzedFrames(inputVideoPath, outputDirectoryPath 
 	)
 
 	if detector.options.ImportPreanalyzed {
+		preanalizedImportTime := time.Now()
+
 		frames, wasPreanalzyed, err = detector.ImportPreanalyzedFrames(outputDirectoryPath)
 		if err != nil {
 			return nil, fmt.Errorf("detector: failed to import the preanalyzed frames: %w", err)
 		}
 
 		if wasPreanalzyed {
-			detector.renderer.LogInfo("Importing the pre-analyzed frames data.")
+			detector.renderer.LogInfo("Importing the pre-analyzed frames data. Stage took: %s", time.Since(preanalizedImportTime))
 			return frames, nil
 		}
 
@@ -323,24 +325,27 @@ func (detector *detector) ApplyAutoThresholds(fc frame.FrameCollection, ds stati
 
 	defaultOptions := GetDefaultDetectorOptions()
 
-	if defaultOptions.BrightnessDetectionThreshold == defaultOptions.BrightnessDetectionThreshold {
+	if detector.options.BrightnessDetectionThreshold == defaultOptions.BrightnessDetectionThreshold {
 		detector.options.BrightnessDetectionThreshold = brightnessThreshold
+		detector.renderer.LogDebug("Auto calculated brightness detection threshold: %g", brightnessThreshold)
 	} else {
 		detector.renderer.LogWarning("The brightness detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
 			detector.options.BrightnessDetectionThreshold,
 			brightnessThreshold)
 	}
 
-	if defaultOptions.ColorDifferenceDetectionThreshold == defaultOptions.ColorDifferenceDetectionThreshold {
+	if detector.options.ColorDifferenceDetectionThreshold == defaultOptions.ColorDifferenceDetectionThreshold {
 		detector.options.ColorDifferenceDetectionThreshold = colorDifferenceThreshold
+		detector.renderer.LogDebug("Auth calculated color difference detection threshold: %g", colorDifferenceThreshold)
 	} else {
 		detector.renderer.LogWarning("The color difference detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
 			detector.options.ColorDifferenceDetectionThreshold,
 			colorDifferenceThreshold)
 	}
 
-	if defaultOptions.BinaryThresholdDifferenceDetectionThreshold == defaultOptions.BinaryThresholdDifferenceDetectionThreshold {
+	if detector.options.BinaryThresholdDifferenceDetectionThreshold == defaultOptions.BinaryThresholdDifferenceDetectionThreshold {
 		detector.options.BinaryThresholdDifferenceDetectionThreshold = binaryThresholdDifferenceThreshold
+		detector.renderer.LogDebug("Auto calculated binary threshold difference threshold: %g", binaryThresholdDifferenceThreshold)
 	} else {
 		detector.renderer.LogWarning("The binary threshold detection threshold (%f) value was explicitly specified and would not be replace by the auto-calculated one (%f)",
 			detector.options.BinaryThresholdDifferenceDetectionThreshold,
@@ -383,6 +388,8 @@ func (detector *detector) PerformVideoDetection(framesCollection frame.FrameColl
 
 // Helper function used to perform exports to varius formats selected via the options
 func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath string, fc frame.FrameCollection, ds statistics.DescriptiveStatistics, detections []int) error {
+	exportTime := time.Now()
+
 	if err := export.RenderDescriptiveStatistics(detector.renderer, ds); err != nil {
 		return fmt.Errorf("detector: failed to export descriptive statistics: %w", err)
 	}
@@ -492,6 +499,7 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 		confusionMatrixSpinnerStop()
 	}
 
+	detector.renderer.LogInfo("Export finished. Stage took: %s", time.Since(exportTime))
 	return nil
 }
 
