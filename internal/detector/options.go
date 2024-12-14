@@ -26,22 +26,21 @@ type DetectorOptions struct {
 	Denoise                                     bool
 	FrameScalingFactor                          float64
 	ImportPreanalyzed                           bool
-	BinarySegmentationThreshold                 float64
+	StrictExplicitThreshold                     bool
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
 // a message will be stored in the string return value.
-// TODO: MovingMeanResolution validation >1
 func (options *DetectorOptions) AreValid() (bool, string) {
-	if options.BrightnessDetectionThreshold < 0.0 || options.BrightnessDetectionThreshold > 1.0 {
+	if options.StrictExplicitThreshold && (options.BrightnessDetectionThreshold < 0.0 || options.BrightnessDetectionThreshold > 1.0) {
 		return false, "the frame brightness detection threshold must be between zero and one"
 	}
 
-	if options.ColorDifferenceDetectionThreshold < 0.0 || options.ColorDifferenceDetectionThreshold > 1.0 {
+	if options.StrictExplicitThreshold && (options.ColorDifferenceDetectionThreshold < 0.0 || options.ColorDifferenceDetectionThreshold > 1.0) {
 		return false, "the frame color difference detection threshold must be between zero and one"
 	}
 
-	if options.BinaryThresholdDifferenceDetectionThreshold < 0.0 || options.BinaryThresholdDifferenceDetectionThreshold > 1.0 {
+	if options.StrictExplicitThreshold && (options.BinaryThresholdDifferenceDetectionThreshold < 0.0 || options.BinaryThresholdDifferenceDetectionThreshold > 1.0) {
 		return false, "the frame binary threshold difference detection threshold must be between zero and one"
 	}
 
@@ -55,6 +54,10 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 
 	if len(options.ConfusionMatrixActualDetectionsExpression) != 0 && !utils.IsRangeExpressionValid(options.ConfusionMatrixActualDetectionsExpression) {
 		return false, "the confusion matrix actual detections expression has a invalid format"
+	}
+
+	if options.MovingMeanResolution < 0 {
+		return false, "the moving mean/stddev resolution can not be negative"
 	}
 
 	return true, ""
@@ -73,9 +76,6 @@ func (options *DetectorOptions) GetChecksum() (string, error) {
 		colorDifferenceStr := strconv.FormatFloat(options.ColorDifferenceDetectionThreshold, 'f', -1, 64)
 		hash.Write([]byte(colorDifferenceStr))
 	}
-
-	// movingMeanResolutionStr := strconv.FormatInt(int64(options.MovingMeanResolution), 10)
-	// hash.Write([]byte(movingMeanResolutionStr))
 
 	if options.Denoise {
 		hash.Write([]byte{0xff})
@@ -107,5 +107,7 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		SkipFramesExport:                            false,
 		Denoise:                                     false,
 		FrameScalingFactor:                          0.5,
+		ImportPreanalyzed:                           false,
+		StrictExplicitThreshold:                     true,
 	}
 }

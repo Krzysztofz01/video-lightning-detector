@@ -118,6 +118,12 @@ func init() {
 		"import-preanalyzed", "p",
 		DetectorOptions.ImportPreanalyzed,
 		"Value indicating the the the pre-analyzed frames should be imported from the previously exported JSON report.")
+
+	rootCmd.PersistentFlags().BoolVar(
+		&DetectorOptions.StrictExplicitThreshold,
+		"strict-explicit-threshold",
+		DetectorOptions.StrictExplicitThreshold,
+		"Value indicating if explicit thresholds range should be validated.")
 }
 
 func Execute(args []string) {

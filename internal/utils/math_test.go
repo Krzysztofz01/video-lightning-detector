@@ -48,6 +48,13 @@ func TestMovingMeanShouldCalculateMeanForValueSet(t *testing.T) {
 		{[]float64{3, 2, 1, 2, 3, 4}, 3, 1, 2.0},
 		{[]float64{3, 2, 1, 2, 3, 4}, 4, 1, 3.0},
 		{[]float64{3, 2, 1, 2, 3, 4}, 5, 1, 3.5},
+
+		{[]float64{3, 2, 1, 2, 3, 4}, 0, 0, 3},
+		{[]float64{3, 2, 1, 2, 3, 4}, 1, 0, 2},
+		{[]float64{3, 2, 1, 2, 3, 4}, 2, 0, 1},
+		{[]float64{3, 2, 1, 2, 3, 4}, 3, 0, 2},
+		{[]float64{3, 2, 1, 2, 3, 4}, 4, 0, 3},
+		{[]float64{3, 2, 1, 2, 3, 4}, 5, 0, 4},
 	}
 
 	const delta float64 = 1e-5
