@@ -10,16 +10,19 @@ type DescriptiveStatistics struct {
 	BrightnessMovingMean                       []float64 `json:"brightness-moving-mean"`
 	BrightnessMovingStdDev                     []float64 `json:"brightness-moving-standard-deviation"`
 	BrightnessStandardDeviation                float64   `json:"brightness-standard-deviation"`
+	BrightnessMin                              float64   `json:"brightness-min"`
 	BrightnessMax                              float64   `json:"brightness-max"`
 	ColorDifferenceMean                        float64   `json:"color-difference-mean"`
 	ColorDifferenceMovingMean                  []float64 `json:"color-difference-moving-mean"`
 	ColorDifferenceMovingStdDev                []float64 `json:"color-difference-moving-standard-deviation"`
 	ColorDifferenceStandardDeviation           float64   `json:"color-difference-standard-deviation"`
+	ColorDifferenceMin                         float64   `json:"color-difference-min"`
 	ColorDifferenceMax                         float64   `json:"color-difference-max"`
 	BinaryThresholdDifferenceMean              float64   `json:"binary-threshold-difference-mean"`
 	BinaryThresholdDifferenceMovingMean        []float64 `json:"binary-threshold-difference-moving-mean"`
 	BinaryThresholdDifferenceMovingStdDev      []float64 `json:"binary-threshold-difference-moving-standard-deviation"`
 	BinaryThresholdDifferenceStandardDeviation float64   `json:"binary-threshold-difference-standard-deviation"`
+	BinaryThresholdDifferenceMin               float64   `json:"binary-threshold-difference-min"`
 	BinaryThresholdDifferenceMax               float64   `json:"binary-threshold-difference-max"`
 }
 
@@ -64,21 +67,28 @@ func CreateDescriptiveStatistics(fc frame.FrameCollection, movingMeanResolution 
 		binaryThresholdDiffMovingStdDev = append(binaryThresholdDiffMovingStdDev, movingStdDev)
 	}
 
+	brightnessMin, brightnessMax := utils.MinMax(brightness)
+	colorDiffMin, colorDiffMax := utils.MinMax(colorDiff)
+	btDiffMin, btDiffMax := utils.MinMax(binaryThresholdDiff)
+
 	return DescriptiveStatistics{
 		BrightnessMean:                             utils.Mean(brightness),
 		BrightnessMovingMean:                       brightnessMovingMean,
 		BrightnessMovingStdDev:                     brightnessMovingStdDev,
 		BrightnessStandardDeviation:                utils.StandardDeviation(brightness),
-		BrightnessMax:                              utils.Max(brightness),
+		BrightnessMin:                              brightnessMin,
+		BrightnessMax:                              brightnessMax,
 		ColorDifferenceMean:                        utils.Mean(colorDiff),
 		ColorDifferenceMovingMean:                  colorDiffMovingMean,
 		ColorDifferenceMovingStdDev:                colorDiffMovingStdDev,
 		ColorDifferenceStandardDeviation:           utils.StandardDeviation(colorDiff),
-		ColorDifferenceMax:                         utils.Max(colorDiff),
+		ColorDifferenceMin:                         colorDiffMin,
+		ColorDifferenceMax:                         colorDiffMax,
 		BinaryThresholdDifferenceMean:              utils.Mean(binaryThresholdDiff),
 		BinaryThresholdDifferenceMovingMean:        binaryThresholdDiffMovingMean,
 		BinaryThresholdDifferenceMovingStdDev:      binaryThresholdDiffMovingStdDev,
 		BinaryThresholdDifferenceStandardDeviation: utils.StandardDeviation(binaryThresholdDiff),
-		BinaryThresholdDifferenceMax:               utils.Max(binaryThresholdDiff),
+		BinaryThresholdDifferenceMin:               btDiffMin,
+		BinaryThresholdDifferenceMax:               btDiffMax,
 	}
 }

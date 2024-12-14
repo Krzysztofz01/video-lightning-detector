@@ -75,21 +75,23 @@ func TestStandardDeviationShouldCalculateStandardDeviationForValueSet(t *testing
 	assert.InDelta(t, expected, actual, delta)
 }
 
-func TestMaxShouldPanicForEmptyValueSet(t *testing.T) {
+func TestMinMaxShouldPanicForEmptyValueSet(t *testing.T) {
 	assert.Panics(t, func() {
-		Max([]float64{})
+		MinMax([]float64{})
 	})
 }
 
-func TestMaxShouldCalculateMaxForValueSet(t *testing.T) {
+func TestMinMaxShouldCalculateMinMaxForValueSet(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6}
-	expected := 6.0
+	minExpected := 1.0
+	maxExpected := 6.0
 
 	const delta float64 = 1e-5
 
-	actual := Max(values)
+	minActual, maxActual := MinMax(values)
 
-	assert.InDelta(t, expected, actual, delta)
+	assert.InDelta(t, minExpected, minActual, delta)
+	assert.InDelta(t, maxExpected, maxActual, delta)
 }
 
 func TestMinIntShoudlReturnTheSmallerValues(t *testing.T) {

@@ -68,14 +68,14 @@ func ExportCsvDescriptiveStatistics(outputDirectoryPath string, ds statistics.De
 	writer := csv.NewWriter(statisticsReportFile)
 
 	rows := [][]string{
-		{"", "Brightness mean", "Brightness standard deviation", "Brightness max"},
-		valuesToCsvRow(1, ds.BrightnessMean, ds.BrightnessStandardDeviation, ds.BrightnessMax),
+		{"", "Brightness mean", "Brightness standard deviation", "Brightness min", "Brightness max"},
+		valuesToCsvRow(1, ds.BrightnessMean, ds.BrightnessStandardDeviation, ds.BrightnessMin, ds.BrightnessMax),
 		{},
-		{"", "Color difference mean", "Color difference standard deviation", "Color difference max"},
-		valuesToCsvRow(1, ds.ColorDifferenceMean, ds.ColorDifferenceStandardDeviation, ds.ColorDifferenceMax),
+		{"", "Color difference mean", "Color difference standard deviation", "ColorDifference min", "Color difference max"},
+		valuesToCsvRow(1, ds.ColorDifferenceMean, ds.ColorDifferenceStandardDeviation, ds.ColorDifferenceMin, ds.ColorDifferenceMax),
 		{},
-		{"", "Binary threshold difference mean", "Binary threshold difference standard deviation", "Binary threshold difference max"},
-		valuesToCsvRow(1, ds.BinaryThresholdDifferenceMean, ds.BinaryThresholdDifferenceStandardDeviation, ds.BinaryThresholdDifferenceMax),
+		{"", "Binary threshold difference mean", "Binary threshold difference standard deviation", "Binary threshold difference min", "Binary threshold difference max"},
+		valuesToCsvRow(1, ds.BinaryThresholdDifferenceMean, ds.BinaryThresholdDifferenceStandardDeviation, ds.ColorDifferenceMin, ds.BinaryThresholdDifferenceMax),
 		{},
 	}
 
@@ -85,12 +85,12 @@ func ExportCsvDescriptiveStatistics(outputDirectoryPath string, ds statistics.De
 		}
 	}
 
-	if err := writer.Write([]string{"Frame (Moving mean center point)", "Brightness moving mean", "ColorDifference moving mean", "BinaryThresholdDifference moving mean"}); err != nil {
+	if err := writer.Write([]string{"Frame (Moving mean center point)", "Brightness moving mean", "Brightness moving stddev", "ColorDifference moving mean", "ColorDifference moving stddev", "BinaryThresholdDifference moving mean", "BinaryThresholdDifference moving stddev"}); err != nil {
 		return "", fmt.Errorf("export: failed to write the moving mean header to the descriptive statistics report file: %w", err)
 	}
 
 	for index := 0; index < len(ds.BrightnessMovingMean); index += 1 {
-		values := valuesToCsvRow(0, ds.BrightnessMovingMean[index], ds.ColorDifferenceMovingMean[index], ds.BinaryThresholdDifferenceMovingMean[index])
+		values := valuesToCsvRow(0, ds.BrightnessMovingMean[index], ds.BrightnessMovingStdDev[index], ds.ColorDifferenceMovingMean[index], ds.ColorDifferenceMovingStdDev[index], ds.BinaryThresholdDifferenceMovingMean[index], ds.BinaryThresholdDifferenceMovingStdDev[index])
 		values = append([]string{strconv.Itoa(index + 1)}, values...)
 
 		if err := writer.Write(values); err != nil {

@@ -83,20 +83,28 @@ func StandardDeviation(x []float64) float64 {
 
 }
 
-// Calcualte the max value of the provided set. Panic if the value set is empty.
-func Max(x []float64) float64 {
+// Calcualte the min and max value of the provided set. Panic if the value set is empty.
+func MinMax(x []float64) (float64, float64) {
 	if len(x) == 0 {
 		panic("utils: can not calucalte the max value of an empty set")
 	}
 
-	max := x[0]
+	var (
+		min float64 = x[0]
+		max float64 = x[0]
+	)
+
 	for _, value := range x {
+		if value < min {
+			min = value
+		}
+
 		if value > max {
 			max = value
 		}
 	}
 
-	return max
+	return min, max
 }
 
 // Return the smaller value of x or y. This functions does not support the edge cases like math.Min
