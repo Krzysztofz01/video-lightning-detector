@@ -1,10 +1,6 @@
-package detector
+package options
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
-	"strconv"
-
 	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
@@ -61,36 +57,11 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 		return false, "the moving mean/stddev resolution can not be negative"
 	}
 
-	return true, ""
-}
-
-func (options *DetectorOptions) GetChecksum() (string, error) {
-	hash := sha1.New()
-
-	if !options.AutoThresholds {
-		binaryThresholdStr := strconv.FormatFloat(options.BinaryThresholdDifferenceDetectionThreshold, 'f', -1, 64)
-		hash.Write([]byte(binaryThresholdStr))
-
-		brightnessThresholdStr := strconv.FormatFloat(options.BrightnessDetectionThreshold, 'f', -1, 64)
-		hash.Write([]byte(brightnessThresholdStr))
-
-		colorDifferenceStr := strconv.FormatFloat(options.ColorDifferenceDetectionThreshold, 'f', -1, 64)
-		hash.Write([]byte(colorDifferenceStr))
+	if !denoise.IsValidAlgorithm(options.Denoise) {
+		return false, "the specified denoise algorithm is invalid"
 	}
 
-	// FIXME: Denoise not taken under account for the checksum
-	// if options.Denoise {
-	// 	hash.Write([]byte{0xff})
-	// } else {
-	// 	hash.Write([]byte{0x00})
-	// }
-
-	framesScalingFactorStr := strconv.FormatFloat(options.FrameScalingFactor, 'f', -1, 64)
-	hash.Write([]byte(framesScalingFactorStr))
-
-	hashHex := hex.EncodeToString(hash.Sum(nil))
-
-	return hashHex, nil
+	return true, ""
 }
 
 // Return the default detector options.

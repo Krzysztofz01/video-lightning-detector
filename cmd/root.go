@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 )
 
@@ -21,7 +22,7 @@ var (
 	InputVideoPath      string
 	OutputDirectoryPath string
 	VerboseMode         bool
-	DetectorOptions     detector.DetectorOptions = detector.GetDefaultDetectorOptions()
+	DetectorOptions     options.DetectorOptions = options.GetDefaultDetectorOptions()
 )
 
 func init() {
