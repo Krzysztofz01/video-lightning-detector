@@ -10,8 +10,10 @@ import (
 	"time"
 
 	vidio "github.com/AlexEidt/Vidio"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/export"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
@@ -23,12 +25,12 @@ type Detector interface {
 }
 
 type detector struct {
-	options  DetectorOptions
+	options  options.DetectorOptions
 	renderer render.Renderer
 }
 
 // Create a new video lightning detector instance with the specified options.
-func CreateDetector(renderer render.Renderer, options DetectorOptions) (Detector, error) {
+func CreateDetector(renderer render.Renderer, options options.DetectorOptions) (Detector, error) {
 	if renderer == nil {
 		return nil, errors.New("detector: invalid nil reference renderer provided")
 	}
@@ -144,9 +146,9 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 			return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
 		}
 
-		if detector.options.Denoise {
-			if err := utils.BlurImage(frameCurrent, frameCurrent, 8); err != nil {
-				return nil, fmt.Errorf("detector: failed to blur the current frame image on the analyze stage: %w", err)
+		if detector.options.Denoise != denoise.NoDenoise {
+			if err := denoise.Denoise(frameCurrent, frameCurrent, detector.options.Denoise); err != nil {
+				return nil, fmt.Errorf("detector: failed to apply denoise to the current frame image on the analyze stage: %w", err)
 			}
 		}
 
@@ -167,7 +169,7 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 
 // Helper function used to import the pre-analyzed frames collection from the JSON export file.
 func (detector *detector) ImportPreanalyzedFrames(outputDirectoryPath string) (frame.FrameCollection, bool, error) {
-	frameCollectionCachePath := path.Join(outputDirectoryPath, FrameCollectionCacheFilename)
+	frameCollectionCachePath := path.Join(outputDirectoryPath, options.FrameCollectionCacheFilename)
 	if !utils.FileExists(frameCollectionCachePath) {
 		return nil, false, nil
 	}
@@ -183,7 +185,7 @@ func (detector *detector) ImportPreanalyzedFrames(outputDirectoryPath string) (f
 		}
 	}()
 
-	optionsChecksum, err := detector.options.GetChecksum()
+	optionsChecksum, err := options.CalculateChecksum(detector.options)
 	if err != nil {
 		return nil, true, fmt.Errorf("detector: failed to access the detector options checksum: %w", err)
 	}
@@ -201,7 +203,7 @@ func (detector *detector) ImportPreanalyzedFrames(outputDirectoryPath string) (f
 }
 
 func (detector *detector) ExportPreanalyzedFrames(fc frame.FrameCollection, outputDirectoryPath string) error {
-	frameCollectionCachePath := path.Join(outputDirectoryPath, FrameCollectionCacheFilename)
+	frameCollectionCachePath := path.Join(outputDirectoryPath, options.FrameCollectionCacheFilename)
 
 	var (
 		frameCollectionCacheFile *os.File
@@ -209,7 +211,7 @@ func (detector *detector) ExportPreanalyzedFrames(fc frame.FrameCollection, outp
 		err                      error
 	)
 
-	if optionsChecksum, err = detector.options.GetChecksum(); err != nil {
+	if optionsChecksum, err = options.CalculateChecksum(detector.options); err != nil {
 		return fmt.Errorf("detector: failed to access the options checksum: %w", err)
 	}
 
@@ -323,7 +325,7 @@ func (detector *detector) ApplyAutoThresholds(fc frame.FrameCollection, ds stati
 		binaryThresholdDifferenceThreshold = btDiffDiffCoefficient*btDiffMeanDiffSum/countf + btDiffStdDevCoefficient*btDiffStdDevSum/countf
 	}
 
-	defaultOptions := GetDefaultDetectorOptions()
+	defaultOptions := options.GetDefaultDetectorOptions()
 
 	if detector.options.BrightnessDetectionThreshold == defaultOptions.BrightnessDetectionThreshold {
 		detector.options.BrightnessDetectionThreshold = brightnessThreshold

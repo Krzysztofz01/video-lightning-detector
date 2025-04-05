@@ -1,10 +1,7 @@
-package detector
+package options
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
-	"strconv"
-
+	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
@@ -23,7 +20,7 @@ type DetectorOptions struct {
 	ExportConfusionMatrix                       bool
 	ConfusionMatrixActualDetectionsExpression   string
 	SkipFramesExport                            bool
-	Denoise                                     bool
+	Denoise                                     denoise.Algorithm
 	FrameScalingFactor                          float64
 	ImportPreanalyzed                           bool
 	StrictExplicitThreshold                     bool
@@ -60,35 +57,11 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 		return false, "the moving mean/stddev resolution can not be negative"
 	}
 
+	if !denoise.IsValidAlgorithm(options.Denoise) {
+		return false, "the specified denoise algorithm is invalid"
+	}
+
 	return true, ""
-}
-
-func (options *DetectorOptions) GetChecksum() (string, error) {
-	hash := sha1.New()
-
-	if !options.AutoThresholds {
-		binaryThresholdStr := strconv.FormatFloat(options.BinaryThresholdDifferenceDetectionThreshold, 'f', -1, 64)
-		hash.Write([]byte(binaryThresholdStr))
-
-		brightnessThresholdStr := strconv.FormatFloat(options.BrightnessDetectionThreshold, 'f', -1, 64)
-		hash.Write([]byte(brightnessThresholdStr))
-
-		colorDifferenceStr := strconv.FormatFloat(options.ColorDifferenceDetectionThreshold, 'f', -1, 64)
-		hash.Write([]byte(colorDifferenceStr))
-	}
-
-	if options.Denoise {
-		hash.Write([]byte{0xff})
-	} else {
-		hash.Write([]byte{0x00})
-	}
-
-	framesScalingFactorStr := strconv.FormatFloat(options.FrameScalingFactor, 'f', -1, 64)
-	hash.Write([]byte(framesScalingFactorStr))
-
-	hashHex := hex.EncodeToString(hash.Sum(nil))
-
-	return hashHex, nil
 }
 
 // Return the default detector options.
@@ -105,7 +78,7 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		ExportConfusionMatrix:                       false,
 		ConfusionMatrixActualDetectionsExpression:   "",
 		SkipFramesExport:                            false,
-		Denoise:                                     false,
+		Denoise:                                     denoise.NoDenoise,
 		FrameScalingFactor:                          0.5,
 		ImportPreanalyzed:                           false,
 		StrictExplicitThreshold:                     true,

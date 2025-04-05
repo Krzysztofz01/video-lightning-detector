@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 )
 
@@ -21,7 +22,7 @@ var (
 	InputVideoPath      string
 	OutputDirectoryPath string
 	VerboseMode         bool
-	DetectorOptions     detector.DetectorOptions = detector.GetDefaultDetectorOptions()
+	DetectorOptions     options.DetectorOptions = options.GetDefaultDetectorOptions()
 )
 
 func init() {
@@ -95,10 +96,9 @@ func init() {
 		DetectorOptions.FrameScalingFactor,
 		"The frame scaling factor used to downscale frames for better performance.")
 
-	rootCmd.PersistentFlags().BoolVarP(
+	rootCmd.PersistentFlags().VarPF(
 		&DetectorOptions.Denoise,
 		"denoise", "n",
-		DetectorOptions.Denoise,
 		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
 
 	rootCmd.PersistentFlags().BoolVar(
