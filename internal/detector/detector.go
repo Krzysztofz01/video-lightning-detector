@@ -10,6 +10,7 @@ import (
 	"time"
 
 	vidio "github.com/AlexEidt/Vidio"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/export"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
@@ -144,9 +145,9 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 			return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
 		}
 
-		if detector.options.Denoise {
-			if err := utils.BlurImage(frameCurrent, frameCurrent, 8); err != nil {
-				return nil, fmt.Errorf("detector: failed to blur the current frame image on the analyze stage: %w", err)
+		if detector.options.Denoise != denoise.NoDenoise {
+			if err := denoise.Denoise(frameCurrent, frameCurrent, detector.options.Denoise); err != nil {
+				return nil, fmt.Errorf("detector: failed to apply denoise to the current frame image on the analyze stage: %w", err)
 			}
 		}
 
