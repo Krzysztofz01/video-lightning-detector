@@ -127,28 +127,11 @@ func init() {
 }
 
 func Execute(args []string) {
-	// getImg := func(p string) image.Image {
-	// 	f, _ := os.Open(p)
-	// 	defer f.Close()
-
-	// 	i, _ := png.Decode(f)
-	// 	return i
-	// }
-
-	// i1 := getImg("/home/krzysztof/Desktop/Repos/video-lightning-detector/bin/inz-test-out/test-day-2/frames/a/frame0210.png")
-	// i2 := getImg("/home/krzysztof/Desktop/Repos/video-lightning-detector/bin/inz-test-out/test-day-2/frames/a/frame0219.png")
-
-	// f1 := frame.CreateNewFrame(i1, nil, 1, frame.BinaryThresholdParam)
-	// f2 := frame.CreateNewFrame(i2, i1, 2, frame.BinaryThresholdParam)
-
-	// _, _ = f1, f2
-
 	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 }
 
 func run(cmd *cobra.Command, args []string) error {
