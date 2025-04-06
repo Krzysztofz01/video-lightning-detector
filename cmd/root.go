@@ -8,7 +8,7 @@ import (
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
-	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,6 +22,7 @@ var (
 	InputVideoPath      string
 	OutputDirectoryPath string
 	VerboseMode         bool
+	QuietMode           bool
 	DetectorOptions     options.DetectorOptions = options.GetDefaultDetectorOptions()
 )
 
@@ -35,6 +36,8 @@ func init() {
 	rootCmd.MarkPersistentFlagRequired("output-directory-path")
 
 	rootCmd.PersistentFlags().BoolVarP(&VerboseMode, "verbose", "v", false, "Enable verbose logging.")
+
+	rootCmd.PersistentFlags().BoolVarP(&QuietMode, "quiet", "q", false, "Enable quiet logging.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.AutoThresholds,
@@ -141,8 +144,7 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	renderer := render.CreateRenderer(VerboseMode)
-	detectorInstance, err := detector.CreateDetector(renderer, DetectorOptions)
+	detectorInstance, err := detector.CreateDetector(configurePrinter(), DetectorOptions)
 	if err != nil {
 		return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
 	}
@@ -152,4 +154,23 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func configurePrinter() printer.Printer {
+	logLevel := printer.Default
+	if QuietMode {
+		logLevel = printer.Quiet
+	}
+
+	if VerboseMode {
+		logLevel = printer.Debug
+	}
+
+	printer.Configure(printer.PrinterConfig{
+		UseColor:  true,
+		LogLevel:  logLevel,
+		OutStream: os.Stdout,
+	})
+
+	return printer.Instance()
 }
