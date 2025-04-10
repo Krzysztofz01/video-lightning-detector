@@ -2,22 +2,23 @@ package frame
 
 import (
 	"image"
-	"image/color"
 
 	"github.com/Krzysztofz01/pimit"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 	"go.uber.org/atomic"
 )
 
+// TODO: Apporach to the binary threshold segmentation:
+//       - Implementing different thresholds for day and night recordings where the birghtness would be the determinant
+//       - Currently there is a comparionsing between the BT result of current na previous frame to calculate white_pixels / all_pixels,
+//         alternatively just the normalized count of the occureance of white pixels could be returned as the result
+//       - determine the parameter for the binary threshold via "the half of the histogram" (Otsu)
+
 const (
-	// TODO: Implement different threshold for day/night. The brightness value can be used as the determinant.
 	BinaryThresholdParam float64 = 200.0 / 255.0
 )
 
 // Strucutre representing a single video frame and its calculated parameters.
-// TODO: When it coms to BinaryThreshold we need to test which approach gives better results.
-// Currently we are comparing the BT of the previous and current frame and than calcualte the white_pixels / all_pixels
-// Alternatively we can just count the occurance of white pixels and return the non-normalized result
 type Frame struct {
 	OrdinalNumber             int     `json:"ordinal-number"`
 	ColorDifference           float64 `json:"color-difference"`
@@ -25,27 +26,35 @@ type Frame struct {
 	Brightness                float64 `json:"brightness"`
 }
 
-// Create a new frame instance by providing the current and previous frame images and the ordinal number of the frame.
-func CreateNewFrame(currentFrame, previousFrame image.Image, ordinalNumber int, binaryThresholdParam float64) *Frame {
+// Create a new frame instance by providing the current and previous frame images and the ordinal number (1 indexed) of the frame.
+func CreateNewFrame(currentFrame, previousFrame *image.RGBA, ordinalNumber int, binaryThresholdParam float64) *Frame {
 	var (
 		brightness    *atomic.Float64 = atomic.NewFloat64(0.0)
 		cDifference   *atomic.Float64 = atomic.NewFloat64(0)
 		btcDifference *atomic.Int32   = atomic.NewInt32(0)
 	)
 
-	pimit.ParallelRead(currentFrame, func(x, y int, currentColor color.Color) {
-		brightness.Add(utils.GetColorBrightness(currentColor))
+	width := previousFrame.Bounds().Dx()
 
-		if ordinalNumber > 1 {
-			previousColor := previousFrame.At(x, y)
+	pimit.ParallelRgbaRead(currentFrame, func(x, y int, cR, cG, cB, _ uint8) {
+		brightness.Add(utils.GetColorBrightness(cR, cG, cB))
 
-			cDifference.Add(utils.GetColorDifference(currentColor, previousColor))
+		if ordinalNumber <= 1 {
+			return
+		}
 
-			thresholdCurrent := utils.BinaryThreshold(currentColor, binaryThresholdParam)
-			thresholdPrevious := utils.BinaryThreshold(previousColor, binaryThresholdParam)
-			if thresholdCurrent != thresholdPrevious {
-				btcDifference.Add(1)
-			}
+		index := 4 * (y*width + x)
+
+		pR := previousFrame.Pix[index+0]
+		pG := previousFrame.Pix[index+1]
+		pB := previousFrame.Pix[index+2]
+
+		cDifference.Add(utils.GetColorDifference(cR, cG, cB, pR, pG, pB))
+
+		thresholdCurrent := utils.BinaryThreshold(cR, cG, cB, binaryThresholdParam)
+		thresholdPrevious := utils.BinaryThreshold(pR, pG, pB, binaryThresholdParam)
+		if thresholdCurrent != thresholdPrevious {
+			btcDifference.Add(1)
 		}
 	})
 

@@ -44,7 +44,7 @@ func TestShouldCreateNewFrameWithIdenticalNeighbour(t *testing.T) {
 	assert.Equal(t, 0.0, frame.BinaryThresholdDifference)
 }
 
-func mockImage(c color.Color) image.Image {
+func mockImage(c color.Color) *image.RGBA {
 	width := 4
 	height := 4
 
