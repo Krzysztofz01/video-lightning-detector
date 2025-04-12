@@ -4,13 +4,11 @@ go 1.20
 
 require (
 	github.com/AlexEidt/Vidio v1.5.0
-	github.com/Krzysztofz01/pimit v1.0.0
 	github.com/esimov/stackblur-go v1.1.0
 	github.com/go-echarts/go-echarts/v2 v2.3.1
 	github.com/pterm/pterm v0.12.65
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.9.0
-	go.uber.org/atomic v1.11.0
 	golang.org/x/image v0.11.0
 )
 
