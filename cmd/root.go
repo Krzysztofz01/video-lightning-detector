@@ -124,6 +124,18 @@ func init() {
 		"strict-explicit-threshold",
 		DetectorOptions.StrictExplicitThreshold,
 		"Value indicating if explicit thresholds range should be validated.")
+
+	rootCmd.PersistentFlags().StringVar(
+		&DetectorOptions.DetectionBoundsExpression,
+		"detection-bounds-expression",
+		DetectorOptions.DetectionBoundsExpression,
+		"Expression indicating the top left point of a detection bounding box and its dimensions. Example: 0:0:100:200")
+
+	rootCmd.PersistentFlags().BoolVar(
+		&DetectorOptions.UseInternalFrameScaling,
+		"use-internal-frame-scaling",
+		DetectorOptions.UseInternalFrameScaling,
+		"Value indicating if the scaling should be performed after the original frame is read to the programs buffer.")
 }
 
 func Execute(args []string) {

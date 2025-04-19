@@ -24,6 +24,8 @@ type DetectorOptions struct {
 	FrameScalingFactor                          float64
 	ImportPreanalyzed                           bool
 	StrictExplicitThreshold                     bool
+	DetectionBoundsExpression                   string
+	UseInternalFrameScaling                     bool
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
@@ -61,6 +63,10 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 		return false, "the specified denoise algorithm is invalid"
 	}
 
+	if len(options.DetectionBoundsExpression) != 0 && !utils.IsBoundsExpressionValid(options.DetectionBoundsExpression) {
+		return false, "the detection bounds expression has a invalid format"
+	}
+
 	return true, ""
 }
 
@@ -82,5 +88,7 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		FrameScalingFactor:                          0.5,
 		ImportPreanalyzed:                           false,
 		StrictExplicitThreshold:                     true,
+		DetectionBoundsExpression:                   "",
+		UseInternalFrameScaling:                     false,
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/video"
 )
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
@@ -119,18 +120,37 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 	videoAnalysisTime := time.Now()
 	detector.renderer.LogDebug("Starting the video analysis stage.")
 
-	video, err := vidio.NewVideo(inputVideoPath)
+	video, err := video.NewVideo(inputVideoPath)
 	if err != nil {
 		return nil, fmt.Errorf("detector: failed to open the video file for the analysis stage: %w", err)
 	}
 
 	defer video.Close()
 
+	if !detector.options.UseInternalFrameScaling {
+		if err := video.SetScale(detector.options.FrameScalingFactor); err != nil {
+			return nil, fmt.Errorf("detector: failed to set the video scaling to the given frame scaling factor: %w", err)
+		}
+	}
+
+	if len(detector.options.DetectionBoundsExpression) != 0 {
+		x, y, w, h, err := utils.ParseBoundsExpression(detector.options.DetectionBoundsExpression)
+		if err != nil {
+			return nil, fmt.Errorf("detector: failed to parse the detection bounds expression: %w", err)
+		}
+
+		if err := video.SetBbox(x, y, w, h); err != nil {
+			return nil, fmt.Errorf("detector: failed to apply the detection bounds to the video: %w", err)
+		}
+	}
+
 	targetWidth := int(float64(video.Width()) * detector.options.FrameScalingFactor)
 	targetHeight := int(float64(video.Height()) * detector.options.FrameScalingFactor)
 
 	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
-	video.SetFrameBuffer(frameCurrentBuffer.Pix)
+	if err := video.SetFrameBuffer(frameCurrentBuffer.Pix); err != nil {
+		return nil, fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
+	}
 
 	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 	framePrevious := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
@@ -142,8 +162,13 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video analysis stage.", frameCount)
 
 	for video.Read() {
-		if err := utils.ScaleImage(frameCurrentBuffer, frameCurrent, detector.options.FrameScalingFactor); err != nil {
-			return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
+		if detector.options.UseInternalFrameScaling {
+			if err := utils.ScaleImage(frameCurrentBuffer, frameCurrent, 1); err != nil {
+				return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
+			}
+		} else {
+			// TODO: Investigate the performance drawback of a additional (not required) buffer copy
+			copy(frameCurrent.Pix, frameCurrentBuffer.Pix)
 		}
 
 		if detector.options.Denoise != denoise.NoDenoise {
