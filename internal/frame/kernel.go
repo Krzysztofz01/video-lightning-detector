@@ -24,8 +24,15 @@ type frame aggregatedKernelResult
 
 func processFrame(currentFrame, previousFrame *image.RGBA, ordinal int, bThreshold float64) frame {
 	var (
-		workers                int               = runtime.NumCPU()
-		pixelCount             int               = currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
+		workers    int = runtime.NumCPU()
+		pixelCount int = currentFrame.Bounds().Dx() * currentFrame.Bounds().Dy()
+	)
+
+	if workers > pixelCount {
+		workers = 1
+	}
+
+	var (
 		countPerWorker         int               = pixelCount / workers
 		countPerWorkerReminder int               = pixelCount % workers
 		kernelResultChannel    chan kernelResult = make(chan kernelResult, workers)
@@ -82,9 +89,9 @@ func processKernel(current, previous []uint8, offset, count, ordinal int, bthres
 	)
 
 	for index := indexOffset; index < indexCount; index += 4 {
-		cR = current[indexOffset+0]
-		cG = current[indexOffset+1]
-		cB = current[indexOffset+2]
+		cR = current[index+0]
+		cG = current[index+1]
+		cB = current[index+2]
 
 		result.BrightnessSum += utils.GetColorBrightness(cR, cG, cB)
 
@@ -92,9 +99,9 @@ func processKernel(current, previous []uint8, offset, count, ordinal int, bthres
 			continue
 		}
 
-		pR = previous[indexOffset+0]
-		pG = previous[indexOffset+1]
-		pB = previous[indexOffset+2]
+		pR = previous[index+0]
+		pG = previous[index+1]
+		pB = previous[index+2]
 
 		result.ColorDifferenceSum += utils.GetColorDifference(cR, cG, cB, pR, pG, pB)
 
