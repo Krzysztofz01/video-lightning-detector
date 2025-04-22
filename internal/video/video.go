@@ -21,10 +21,10 @@ type vec2i struct {
 }
 
 type Video interface {
+	GetInputDimensions() (int, int)
+	GetOutputDimensions() (int, int)
 	SetScale(s float64) error
 	SetBbox(x, y, w, h int) error
-	Width() int
-	Height() int
 	Frames() int
 	SetFrameBuffer(buffer []byte) error
 	Read() bool
@@ -45,6 +45,32 @@ type video struct {
 	Pipe        io.ReadCloser
 }
 
+func (v *video) GetInputDimensions() (int, int) {
+	return v.Dim.X, v.Dim.Y
+}
+
+func (v *video) GetScaledDimensions() (int, int) {
+	wF := float64(v.Dim.X) * v.Scale
+	hF := float64(v.Dim.Y) * v.Scale
+
+	return int(wF), int(hF)
+}
+
+func (v *video) GetOutputBbox() (int, int, int, int) {
+	xF := float64(v.BboxAnchor.X) * v.Scale
+	yF := float64(v.BboxAnchor.Y) * v.Scale
+	wF := float64(v.BboxDim.X) * v.Scale
+	hF := float64(v.BboxDim.Y) * v.Scale
+
+	return int(xF), int(yF), int(wF), int(hF)
+}
+
+func (v *video) GetOutputDimensions() (int, int) {
+	_, _, w, h := v.GetOutputBbox()
+
+	return w, h
+}
+
 func (v *video) SetScale(s float64) error {
 	if v.IsInitialized() {
 		return fmt.Errorf("video: can not change scale after initialization")
@@ -63,6 +89,14 @@ func (v *video) SetBbox(x, y, w, h int) error {
 		return fmt.Errorf("video: can not change bbox after initialization")
 	}
 
+	if w <= 0 || h <= 0 {
+		return fmt.Errorf("video: the video bbox sizes can not be negative or zero")
+	}
+
+	if x < 0 || x >= v.Dim.X || y < 0 || y >= v.Dim.Y {
+		return fmt.Errorf("video: the video bbox anchor is out of the video range")
+	}
+
 	if x+w >= v.Dim.X {
 		return fmt.Errorf("video: the video bbox horizontaly overflows the video bounds")
 	}
@@ -76,20 +110,12 @@ func (v *video) SetBbox(x, y, w, h int) error {
 	return nil
 }
 
-func (v *video) Frames() int {
-	return v.FramesCount
-}
-
-func (v *video) Width() int {
-	return int(float64(v.BboxDim.X) * v.Scale)
-}
-
-func (v *video) Height() int {
-	return int(float64(v.BboxDim.Y) * v.Scale)
-}
-
 func (v *video) IsBboxUsed() bool {
 	return v.Dim.X != v.BboxDim.X || v.Dim.Y != v.BboxDim.Y
+}
+
+func (v *video) Frames() int {
+	return v.FramesCount
 }
 
 func (v *video) SetFrameBuffer(buffer []byte) error {
@@ -97,7 +123,9 @@ func (v *video) SetFrameBuffer(buffer []byte) error {
 		return fmt.Errorf("video: can not change the frame buffer after initialization")
 	}
 
-	size := v.Width() * v.Height() * depth
+	w, h := v.GetOutputDimensions()
+	size := w * h * depth
+
 	if len(buffer) != size {
 		return fmt.Errorf("video: the target buffer size of %d does not match the required buffer length of %d", len(buffer), size)
 	}
@@ -151,37 +179,32 @@ func (v *video) Init() error {
 		return fmt.Errorf("video: video reading process can not be reinitialized")
 	}
 
-	args := []string{
-		"-i", v.FilePath,
-		"-loglevel", "quiet",
-		"-hide_banner",
-		"-f", "image2pipe",
-		"-pix_fmt", "rgba",
-		"-vcodec", "rawvideo",
-		// "-hwaccel", "auto",
-		"-map", "0:v:0",
-	}
-
-	filterExpressions := make([]string, 0, 8)
+	var (
+		filters []string = make([]string, 0, 16)
+		args    []string = make([]string, 0, 32)
+	)
 
 	if v.Scale != 1 {
-		expression := fmt.Sprintf("scale=iw*%[1]f:ih*%[1]f", v.Scale)
-		filterExpressions = append(filterExpressions, expression)
+		w, h := v.GetScaledDimensions()
+		filters = append(filters, fmt.Sprintf("scale=%d:%d", w, h))
 	}
 
 	if v.IsBboxUsed() {
-		x := int(float64(v.BboxAnchor.X) * v.Scale)
-		y := int(float64(v.BboxAnchor.Y) * v.Scale)
-		w := int(float64(v.BboxDim.X) * v.Scale)
-		h := int(float64(v.BboxDim.Y) * v.Scale)
-
-		expression := fmt.Sprintf("crop=%d:%d:%d:%d", w, h, x, y)
-		filterExpressions = append(filterExpressions, expression)
+		x, y, w, h := v.GetOutputBbox()
+		filters = append(filters, fmt.Sprintf("crop=%d:%d:%d:%d", w, h, x, y))
 	}
 
-	if len(filterExpressions) > 0 {
-		filterExpression := strings.Join(filterExpressions, ",")
-		args = append(args, "-vf", filterExpression)
+	args = append(args, "-i", v.FilePath)
+	args = append(args, "-loglevel", "quiet")
+	args = append(args, "-hide_banner")
+	args = append(args, "-f", "image2pipe")
+	args = append(args, "-pix_fmt", "rgba")
+	args = append(args, "-vcodec", "rawvideo")
+	args = append(args, "-map", "0:v:0")
+
+	if len(filters) > 0 {
+		filter := strings.Join(filters, ",")
+		args = append(args, "-vf", filter)
 	}
 
 	args = append(args, "-")
@@ -196,7 +219,10 @@ func (v *video) Init() error {
 	}
 
 	if v.FrameBuffer == nil {
-		v.FrameBuffer = make([]byte, v.BboxAnchor.X*v.BboxAnchor.Y*depth)
+		w, h := v.GetOutputDimensions()
+		size := w * h * depth
+
+		v.FrameBuffer = make([]byte, size)
 	}
 
 	v.Process = cmd

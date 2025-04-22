@@ -144,10 +144,11 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 		}
 	}
 
-	targetWidth := int(float64(video.Width()) * detector.options.FrameScalingFactor)
-	targetHeight := int(float64(video.Height()) * detector.options.FrameScalingFactor)
+	// FIXME: This apporach is breaking the internal implementation
+	targetWidth, targetHeight := video.GetOutputDimensions()
 
-	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
+	// FIXME: This apporach is breaking the internal implementation
+	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 	if err := video.SetFrameBuffer(frameCurrentBuffer.Pix); err != nil {
 		return nil, fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
 	}
