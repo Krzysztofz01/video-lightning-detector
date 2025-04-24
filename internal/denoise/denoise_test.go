@@ -5,24 +5,9 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestIsValidAlgorithmShouldReturnCorrectBoolean(t *testing.T) {
-	cases := map[Algorithm]bool{
-		NoDenoise:   true,
-		StackBlur8:  true,
-		StackBlur16: true,
-		StackBlur32: true,
-		-1:          false,
-	}
-
-	for algorithm, expected := range cases {
-		actual := IsValidAlgorithm(algorithm)
-
-		assert.Equal(t, expected, actual)
-	}
-}
 
 func TestDenoiseShouldReturnErrorOnNilSource(t *testing.T) {
 	originalImage := image.NewRGBA(image.Rect(0, 0, 2, 2))
@@ -92,7 +77,7 @@ func TestDenoiseShouldDenoiseImage(t *testing.T) {
 
 		assert.Nil(t, err)
 
-		if a == NoDenoise {
+		if a == options.NoDenoise {
 			continue
 		}
 
@@ -104,9 +89,9 @@ func TestDenoiseShouldDenoiseImage(t *testing.T) {
 	}
 }
 
-var algorithms []Algorithm = []Algorithm{
-	NoDenoise,
-	StackBlur8,
-	StackBlur16,
-	StackBlur32,
+var algorithms []options.DenoiseAlgorithm = []options.DenoiseAlgorithm{
+	options.NoDenoise,
+	options.StackBlur8,
+	options.StackBlur16,
+	options.StackBlur32,
 }

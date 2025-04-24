@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
@@ -24,6 +25,7 @@ type Video interface {
 	GetInputDimensions() (int, int)
 	GetOutputDimensions() (int, int)
 	SetScale(s float64) error
+	SetScaleAlgorithm(a options.ScaleAlgorithm) error
 	SetBbox(x, y, w, h int) error
 	Frames() int
 	SetFrameBuffer(buffer []byte) error
@@ -32,17 +34,18 @@ type Video interface {
 }
 
 type video struct {
-	FilePath    string
-	Dim         vec2i
-	BboxAnchor  vec2i
-	BboxDim     vec2i
-	Scale       float64
-	Duration    float64
-	Fps         float64
-	FramesCount int
-	FrameBuffer []byte
-	Process     *exec.Cmd
-	Pipe        io.ReadCloser
+	FilePath       string
+	Dim            vec2i
+	BboxAnchor     vec2i
+	BboxDim        vec2i
+	Scale          float64
+	ScaleAlgorithm options.ScaleAlgorithm
+	Duration       float64
+	Fps            float64
+	FramesCount    int
+	FrameBuffer    []byte
+	Process        *exec.Cmd
+	Pipe           io.ReadCloser
 }
 
 func (v *video) GetInputDimensions() (int, int) {
@@ -69,6 +72,19 @@ func (v *video) GetOutputDimensions() (int, int) {
 	_, _, w, h := v.GetOutputBbox()
 
 	return w, h
+}
+
+func (v *video) SetScaleAlgorithm(a options.ScaleAlgorithm) error {
+	if v.IsInitialized() {
+		return fmt.Errorf("video: can not change scale algorithm after initialization")
+	}
+
+	if !options.IsValidScaleAlgorithm(a) {
+		return fmt.Errorf("video: the specified scale algorithm is invalid")
+	}
+
+	v.ScaleAlgorithm = a
+	return nil
 }
 
 func (v *video) SetScale(s float64) error {
@@ -148,12 +164,10 @@ func (v *video) Read() bool {
 		return false
 	}
 
-	// TODO: Remove debug logs
-	// fmt.Printf("Ex: %d\nAc: %d\n", v.Width()*v.Height()*depth, read)
-
 	return true
 }
 
+// FIXME: Kill on undefined state -> Wait() -> Close pipe
 func (v *video) Close() {
 	if v.Pipe != nil {
 		v.Pipe.Close()
@@ -186,7 +200,29 @@ func (v *video) Init() error {
 
 	if v.Scale != 1 {
 		w, h := v.GetScaledDimensions()
-		filters = append(filters, fmt.Sprintf("scale=%d:%d", w, h))
+
+		var algorithm string
+		switch v.ScaleAlgorithm {
+		case options.Default:
+		case options.Bilinear:
+			algorithm = "bilinear"
+		case options.Bicubic:
+			algorithm = "bicubic"
+		case options.NearestNeighbour:
+			algorithm = "nearest"
+		case options.Lanczos:
+			algorithm = "lanczos"
+		case options.Area:
+			algorithm = "area"
+		default:
+			return fmt.Errorf("video: invalid corrupted scale algorithm value")
+		}
+
+		if v.ScaleAlgorithm == options.Default {
+			filters = append(filters, fmt.Sprintf("scale=%d:%d", w, h))
+		} else {
+			filters = append(filters, fmt.Sprintf("scale=%d:%d:flags=%s", w, h, algorithm))
+		}
 	}
 
 	if v.IsBboxUsed() {
@@ -209,8 +245,6 @@ func (v *video) Init() error {
 
 	args = append(args, "-")
 
-	// TODO: remove debug logs
-	fmt.Printf("\n%s\n\n", strings.Join(args, " "))
 	cmd := exec.Command(ffmpegBinaryName, args...)
 
 	pipe, err := cmd.StdoutPipe()

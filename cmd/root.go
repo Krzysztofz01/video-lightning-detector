@@ -96,7 +96,7 @@ func init() {
 		DetectorOptions.FrameScalingFactor,
 		"The frame scaling factor used to downscale frames for better performance.")
 
-	rootCmd.PersistentFlags().VarPF(
+	rootCmd.PersistentFlags().VarP(
 		&DetectorOptions.Denoise,
 		"denoise", "n",
 		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
@@ -136,6 +136,11 @@ func init() {
 		"use-internal-frame-scaling",
 		DetectorOptions.UseInternalFrameScaling,
 		"Value indicating if the scaling should be performed after the original frame is read to the programs buffer.")
+
+	rootCmd.PersistentFlags().Var(
+		&DetectorOptions.ScaleAlgorithm,
+		"scaling-algorithm",
+		"Interpolation sampling algorithm that will be used for the scaling.")
 }
 
 func Execute(args []string) {

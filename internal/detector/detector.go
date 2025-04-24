@@ -131,6 +131,10 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 		if err := video.SetScale(detector.options.FrameScalingFactor); err != nil {
 			return nil, fmt.Errorf("detector: failed to set the video scaling to the given frame scaling factor: %w", err)
 		}
+
+		if err := video.SetScaleAlgorithm(detector.options.ScaleAlgorithm); err != nil {
+			return nil, fmt.Errorf("detector: failed to set the video scaling algorithm for the video: %w", err)
+		}
 	}
 
 	if len(detector.options.DetectionBoundsExpression) != 0 {
@@ -172,7 +176,7 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 			copy(frameCurrent.Pix, frameCurrentBuffer.Pix)
 		}
 
-		if detector.options.Denoise != denoise.NoDenoise {
+		if detector.options.Denoise != options.NoDenoise {
 			if err := denoise.Denoise(frameCurrent, frameCurrent, detector.options.Denoise); err != nil {
 				return nil, fmt.Errorf("detector: failed to apply denoise to the current frame image on the analyze stage: %w", err)
 			}

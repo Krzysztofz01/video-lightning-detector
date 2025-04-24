@@ -1,7 +1,6 @@
 package options
 
 import (
-	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
@@ -20,12 +19,13 @@ type DetectorOptions struct {
 	ExportConfusionMatrix                       bool
 	ConfusionMatrixActualDetectionsExpression   string
 	SkipFramesExport                            bool
-	Denoise                                     denoise.Algorithm
+	Denoise                                     DenoiseAlgorithm
 	FrameScalingFactor                          float64
 	ImportPreanalyzed                           bool
 	StrictExplicitThreshold                     bool
 	DetectionBoundsExpression                   string
 	UseInternalFrameScaling                     bool
+	ScaleAlgorithm                              ScaleAlgorithm
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
@@ -59,12 +59,16 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 		return false, "the moving mean/stddev resolution can not be negative"
 	}
 
-	if !denoise.IsValidAlgorithm(options.Denoise) {
+	if !IsValidDenoiseAlgorithm(options.Denoise) {
 		return false, "the specified denoise algorithm is invalid"
 	}
 
 	if len(options.DetectionBoundsExpression) != 0 && !utils.IsBoundsExpressionValid(options.DetectionBoundsExpression) {
 		return false, "the detection bounds expression has a invalid format"
+	}
+
+	if !IsValidScaleAlgorithm(options.ScaleAlgorithm) {
+		return false, "the specified scale algorithm is invalid"
 	}
 
 	return true, ""
@@ -84,11 +88,12 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		ExportConfusionMatrix:                       false,
 		ConfusionMatrixActualDetectionsExpression:   "",
 		SkipFramesExport:                            false,
-		Denoise:                                     denoise.NoDenoise,
+		Denoise:                                     NoDenoise,
 		FrameScalingFactor:                          0.5,
 		ImportPreanalyzed:                           false,
 		StrictExplicitThreshold:                     true,
 		DetectionBoundsExpression:                   "",
 		UseInternalFrameScaling:                     false,
+		ScaleAlgorithm:                              Default,
 	}
 }
