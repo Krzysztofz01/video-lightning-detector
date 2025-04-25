@@ -11,7 +11,6 @@ import (
 )
 
 // FIXME: Add support for hardware accelerated decoding
-// FIXME: Add support for exporting specific frames
 
 const (
 	depth int = 4
@@ -27,6 +26,7 @@ type Video interface {
 	SetScale(s float64) error
 	SetScaleAlgorithm(a options.ScaleAlgorithm) error
 	SetBbox(x, y, w, h int) error
+	SetTargetFrames(n ...int) error
 	Frames() int
 	SetFrameBuffer(buffer []byte) error
 	Read() error
@@ -40,6 +40,7 @@ type video struct {
 	BboxDim        vec2i
 	Scale          float64
 	ScaleAlgorithm options.ScaleAlgorithm
+	TargetFrames   []int
 	Duration       float64
 	Fps            float64
 	FramesCount    int
@@ -123,6 +124,25 @@ func (v *video) SetBbox(x, y, w, h int) error {
 
 	v.BboxAnchor = vec2i{X: x, Y: y}
 	v.BboxDim = vec2i{X: w, Y: h}
+	return nil
+}
+
+func (v *video) SetTargetFrames(n ...int) error {
+	if v.IsInitialized() {
+		return fmt.Errorf("video: can not change target frames after initialization")
+	}
+
+	if len(n) == 0 {
+		return fmt.Errorf("video: no frames indexes were specified to extract")
+	}
+
+	for _, nVal := range n {
+		if nVal >= v.FramesCount {
+			return fmt.Errorf("video: the provided frame indexes are not in the frame count range")
+		}
+	}
+
+	v.TargetFrames = n
 	return nil
 }
 
@@ -210,6 +230,19 @@ func (v *video) Init() error {
 		args    []string = make([]string, 0, 32)
 	)
 
+	if v.TargetFrames != nil {
+		frames := strings.Builder{}
+		for index, n := range v.TargetFrames {
+			if index != 0 {
+				frames.WriteRune('+')
+			}
+
+			frames.WriteString(fmt.Sprintf("eq(n\\,%d)", n))
+		}
+
+		filters = append(filters, fmt.Sprintf("select='%s'", frames.String()))
+	}
+
 	if v.Scale != 1 {
 		w, h := v.GetScaledDimensions()
 
@@ -255,6 +288,10 @@ func (v *video) Init() error {
 		args = append(args, "-vf", filter)
 	}
 
+	if v.TargetFrames != nil {
+		args = append(args, "-vsync", "0")
+	}
+
 	args = append(args, "-")
 
 	cmd := exec.Command(ffmpegBinaryName, args...)
@@ -283,7 +320,7 @@ func (v *video) Init() error {
 
 func NewVideo(path string) (Video, error) {
 	if !utils.FileExists(path) {
-		return nil, fmt.Errorf("video: the video file specified by the does not exist")
+		return nil, fmt.Errorf("video: the video file specified by the path does not exist")
 	}
 
 	if ok, err := AreBinariesAvailable(); !ok && err != nil {
@@ -296,16 +333,18 @@ func NewVideo(path string) (Video, error) {
 	}
 
 	return &video{
-		FilePath:    path,
-		Dim:         vec2i{X: probe.Width, Y: probe.Height},
-		BboxAnchor:  vec2i{X: 0, Y: 0},
-		BboxDim:     vec2i{X: probe.Width, Y: probe.Height},
-		Scale:       1,
-		Duration:    probe.Duration,
-		Fps:         probe.Fps,
-		FramesCount: probe.Frames,
-		FrameBuffer: nil,
-		Process:     nil,
-		Pipe:        nil,
+		FilePath:       path,
+		Dim:            vec2i{X: probe.Width, Y: probe.Height},
+		BboxAnchor:     vec2i{X: 0, Y: 0},
+		BboxDim:        vec2i{X: probe.Width, Y: probe.Height},
+		Scale:          1,
+		Duration:       probe.Duration,
+		Fps:            probe.Fps,
+		FramesCount:    probe.Frames,
+		FrameBuffer:    nil,
+		Process:        nil,
+		Pipe:           nil,
+		ScaleAlgorithm: options.Default,
+		TargetFrames:   nil,
 	}, nil
 }

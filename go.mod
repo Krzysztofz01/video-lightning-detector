@@ -3,7 +3,6 @@ module github.com/Krzysztofz01/video-lightning-detector
 go 1.20
 
 require (
-	github.com/AlexEidt/Vidio v1.5.0
 	github.com/Krzysztofz01/pimit v1.0.0
 	github.com/esimov/stackblur-go v1.1.0
 	github.com/go-echarts/go-echarts/v2 v2.3.1
