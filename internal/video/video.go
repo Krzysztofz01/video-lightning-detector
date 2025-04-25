@@ -29,7 +29,7 @@ type Video interface {
 	SetBbox(x, y, w, h int) error
 	Frames() int
 	SetFrameBuffer(buffer []byte) error
-	Read() bool
+	Read() error
 	Close()
 }
 
@@ -150,33 +150,45 @@ func (v *video) SetFrameBuffer(buffer []byte) error {
 	return nil
 }
 
-// TODO: Better handling of errors and EOF
-func (v *video) Read() bool {
+func (v *video) Read() error {
 	if !v.IsInitialized() {
 		if err := v.Init(); err != nil {
-			return false
+			return fmt.Errorf("video: failed to initliaze frame reading video stream: %w", err)
 		}
 	}
 
-	_, err := io.ReadFull(v.Pipe, v.FrameBuffer)
-	if err != nil {
-		v.Close()
-		return false
+	if _, err := io.ReadFull(v.Pipe, v.FrameBuffer); err == nil {
+		return nil
+	} else if err == io.EOF {
+		return io.EOF
+	} else if err == io.ErrUnexpectedEOF {
+		return fmt.Errorf("video: failed to read the video frame data via the process pipe due to invalid data length")
+	} else {
+		return fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
 	}
-
-	return true
 }
 
-// FIXME: Kill on undefined state -> Wait() -> Close pipe
 func (v *video) Close() {
+	defer func() {
+		if err := recover(); err != nil {
+			v.Process = nil
+			v.Pipe = nil
+			v.FrameBuffer = nil
+		}
+	}()
+
+	if v.Process != nil {
+		if v.Process.ProcessState == nil || !v.Process.ProcessState.Exited() {
+			v.Process.Process.Kill()
+		}
+
+		v.Process.Wait()
+		v.Process = nil
+	}
+
 	if v.Pipe != nil {
 		v.Pipe.Close()
 		v.Pipe = nil
-	}
-
-	if v.Process != nil {
-		v.Process.Process.Kill()
-		v.Process = nil
 	}
 
 	if v.FrameBuffer != nil {

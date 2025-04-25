@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"io"
 	"math"
 	"os"
 	"path"
@@ -166,7 +167,13 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video analysis stage.", frameCount)
 
-	for video.Read() {
+	for {
+		if err := video.Read(); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("detector: failed to read the video frame: %w", err)
+		}
+
 		if detector.options.UseInternalFrameScaling {
 			if err := utils.ScaleImage(frameCurrentBuffer, frameCurrent, 1); err != nil {
 				return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
