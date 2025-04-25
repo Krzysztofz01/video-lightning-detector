@@ -10,7 +10,6 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/atomic v1.11.0
-	golang.org/x/image v0.11.0
 )
 
 require (

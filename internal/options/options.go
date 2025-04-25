@@ -24,7 +24,6 @@ type DetectorOptions struct {
 	ImportPreanalyzed                           bool
 	StrictExplicitThreshold                     bool
 	DetectionBoundsExpression                   string
-	UseInternalFrameScaling                     bool
 	ScaleAlgorithm                              ScaleAlgorithm
 }
 
@@ -93,7 +92,6 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		ImportPreanalyzed:                           false,
 		StrictExplicitThreshold:                     true,
 		DetectionBoundsExpression:                   "",
-		UseInternalFrameScaling:                     false,
 		ScaleAlgorithm:                              Default,
 	}
 }

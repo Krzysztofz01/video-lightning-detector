@@ -126,14 +126,12 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 
 	defer video.Close()
 
-	if !detector.options.UseInternalFrameScaling {
-		if err := video.SetScale(detector.options.FrameScalingFactor); err != nil {
-			return nil, fmt.Errorf("detector: failed to set the video scaling to the given frame scaling factor: %w", err)
-		}
+	if err := video.SetScale(detector.options.FrameScalingFactor); err != nil {
+		return nil, fmt.Errorf("detector: failed to set the video scaling to the given frame scaling factor: %w", err)
+	}
 
-		if err := video.SetScaleAlgorithm(detector.options.ScaleAlgorithm); err != nil {
-			return nil, fmt.Errorf("detector: failed to set the video scaling algorithm for the video: %w", err)
-		}
+	if err := video.SetScaleAlgorithm(detector.options.ScaleAlgorithm); err != nil {
+		return nil, fmt.Errorf("detector: failed to set the video scaling algorithm for the video: %w", err)
 	}
 
 	if len(detector.options.DetectionBoundsExpression) != 0 {
@@ -147,17 +145,13 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 		}
 	}
 
-	// FIXME: This apporach is breaking the internal implementation
 	targetWidth, targetHeight := video.GetOutputDimensions()
-
-	// FIXME: This apporach is breaking the internal implementation
-	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-	if err := video.SetFrameBuffer(frameCurrentBuffer.Pix); err != nil {
-		return nil, fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
-	}
-
 	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 	framePrevious := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+
+	if err := video.SetFrameBuffer(frameCurrent.Pix); err != nil {
+		return nil, fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
+	}
 
 	frameNumber := 1
 	frameCount := video.Frames()
@@ -170,15 +164,6 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 			break
 		} else if err != nil {
 			return nil, fmt.Errorf("detector: failed to read the video frame: %w", err)
-		}
-
-		if detector.options.UseInternalFrameScaling {
-			if err := utils.ScaleImage(frameCurrentBuffer, frameCurrent, 1); err != nil {
-				return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
-			}
-		} else {
-			// TODO: Investigate the performance drawback of a additional (not required) buffer copy
-			copy(frameCurrent.Pix, frameCurrentBuffer.Pix)
 		}
 
 		if detector.options.Denoise != options.NoDenoise {
@@ -194,6 +179,8 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 
 		frameNumber += 1
 		progressBarStep()
+
+		// TODO: This can be run concurrently together with CreateNewFrame on separeted goroutines but will require a double-buffered framePrevious.
 		copy(framePrevious.Pix, frameCurrent.Pix)
 	}
 

@@ -131,12 +131,6 @@ func init() {
 		DetectorOptions.DetectionBoundsExpression,
 		"Expression indicating the top left point of a detection bounding box and its dimensions. Example: 0:0:100:200")
 
-	rootCmd.PersistentFlags().BoolVar(
-		&DetectorOptions.UseInternalFrameScaling,
-		"use-internal-frame-scaling",
-		DetectorOptions.UseInternalFrameScaling,
-		"Value indicating if the scaling should be performed after the original frame is read to the programs buffer.")
-
 	rootCmd.PersistentFlags().Var(
 		&DetectorOptions.ScaleAlgorithm,
 		"scaling-algorithm",
