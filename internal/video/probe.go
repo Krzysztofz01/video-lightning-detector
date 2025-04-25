@@ -10,8 +10,14 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-// FIXME: Support for handling file with multiple streams (Check for [STREAM][/STREAM])
-// FIXME: Support for handling file without streams (same as above)
+type probeToken string
+
+const (
+	tokenStreamOpen  probeToken = "[STREAM]"
+	tokenStreamClose probeToken = "[/STREAM]"
+	tokenFormatOpen  probeToken = "[FORMAT]"
+	tokenFormatClose probeToken = "[/FORMAT]"
+)
 
 type VideoProbe struct {
 	Width    int
@@ -32,7 +38,7 @@ func probeVideo(path string) (VideoProbe, error) {
 		"-loglevel", "quiet",
 		"-show_entries", "stream=width,height,rotation,nb_frames,r_frame_rate",
 		"-show_entries", "format=duration",
-		"-of", "default=noprint_wrappers=1:nokey=0",
+		"-of", "default=noprint_wrappers=0:nokey=0",
 		path,
 	)
 
@@ -55,13 +61,48 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 	scanner.Split(bufio.ScanLines)
 
 	var (
-		probe  VideoProbe = VideoProbe{}
-		rotate bool       = false
-		key    string
-		value  string
+		probe             VideoProbe = VideoProbe{}
+		stateRotate       bool       = false
+		stateStreamCount  int        = 0
+		stateStreamParity int        = 0
+		stateFormatParity int        = 0
+	)
+
+	var (
+		key   string
+		value string
 	)
 
 	for scanner.Scan() {
+		switch scanner.Text() {
+		case string(tokenStreamOpen):
+			{
+				if stateStreamCount > 0 {
+					return VideoProbe{}, fmt.Errorf("video: video files containing multiple video streams are not supported")
+				}
+
+				stateStreamCount += 1
+				stateStreamParity += 1
+				continue
+			}
+		case string(tokenStreamClose):
+			{
+				stateStreamParity -= 1
+				continue
+			}
+		case string(tokenFormatOpen):
+			{
+				stateFormatParity += 1
+				continue
+			}
+		case string(tokenFormatClose):
+			{
+				stateFormatParity -= 1
+				continue
+			}
+		default:
+		}
+
 		if textParts := strings.Split(scanner.Text(), "="); len(textParts) != 2 {
 			return VideoProbe{}, fmt.Errorf("video: failed to parse the probe result due to invalid result format")
 		} else {
@@ -128,7 +169,7 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 		case "tag:rotate":
 			{
 				if value == "90" || value == "270" {
-					rotate = true
+					stateRotate = true
 				}
 			}
 		default:
@@ -137,7 +178,15 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 		}
 	}
 
-	if rotate {
+	if stateStreamCount != 1 {
+		return VideoProbe{}, fmt.Errorf("video: the video contains a invalid number of video streams")
+	}
+
+	if stateStreamParity != 0 || stateFormatParity != 0 {
+		return VideoProbe{}, fmt.Errorf("video: failed to probe the video due to invalid probe result format")
+	}
+
+	if stateRotate {
 		probe.Width, probe.Height = probe.Height, probe.Width
 	}
 
