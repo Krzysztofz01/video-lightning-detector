@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
@@ -569,6 +570,8 @@ func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirecto
 	detector.renderer.LogDebug("Starting the frames export stage.")
 	detector.renderer.LogInfo("About to export %d frames.", len(detections))
 
+	slices.Sort(detections)
+
 	video, err := video.NewVideo(inputVideoPath)
 	if err != nil {
 		return fmt.Errorf("detector: failed to open the video file for the frame export stage: %w", err)
@@ -589,7 +592,6 @@ func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirecto
 
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video frames export stage.", len(detections))
 
-	// TODO: Verify if the order of the detection frame indexes is matching with the video frames order
 	for _, frameIndex := range detections {
 		if err := video.Read(); err == io.EOF {
 			break
