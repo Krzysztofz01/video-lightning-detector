@@ -106,3 +106,50 @@ func (a *ScaleAlgorithm) Set(s string) error {
 func (a *ScaleAlgorithm) Type() string {
 	return "scalealgorithm"
 }
+
+type LogLevel int
+
+const (
+	Quiet LogLevel = iota - 1
+	Info
+	Verbose
+)
+
+func IsValidLogLevel(a LogLevel) bool {
+	switch a {
+	case Info, Verbose, Quiet:
+		return true
+	default:
+		return false
+	}
+}
+
+var logLevelNames = map[string]LogLevel{
+	"info":    Info,
+	"verbose": Verbose,
+	"quiet":   Quiet,
+}
+
+func (a *LogLevel) String() string {
+	for name, level := range logLevelNames {
+		if level == *a {
+			return name
+		}
+	}
+
+	panic("options: invalid unknown log level")
+}
+
+func (a *LogLevel) Set(s string) error {
+	if level, ok := logLevelNames[strings.ToLower(s)]; !ok {
+		return fmt.Errorf("options: invalid unknown log level name")
+	} else {
+		*a = level
+	}
+
+	return nil
+}
+
+func (a *LogLevel) Type() string {
+	return "loglevel"
+}

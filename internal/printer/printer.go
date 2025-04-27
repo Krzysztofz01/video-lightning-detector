@@ -4,29 +4,20 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/pterm/pterm"
 )
 
 // TODO: Implement Printer and PrinterConfig unit test
 
-type PrinerLogLevel int
-
-const (
-	Quiet PrinerLogLevel = iota
-	Default
-	Debug
-)
-
 type PrinterConfig struct {
 	UseColor  bool
-	LogLevel  PrinerLogLevel
+	LogLevel  options.LogLevel
 	OutStream io.Writer
 }
 
 func (c *PrinterConfig) IsValid() (bool, string) {
-	switch c.LogLevel {
-	case Quiet, Default, Debug:
-	default:
+	if !options.IsValidLogLevel(c.LogLevel) {
 		return false, "invalid unsupported log level"
 	}
 
@@ -49,11 +40,11 @@ type Printer interface {
 }
 
 type printer struct {
-	config PrinterConfig
+	Config PrinterConfig
 }
 
 func (p *printer) Debug(format string, args ...any) {
-	if p.config.LogLevel >= Debug {
+	if p.Config.LogLevel < options.Verbose {
 		return
 	}
 
@@ -65,7 +56,7 @@ func (p *printer) Error(format string, args ...any) {
 }
 
 func (p *printer) Info(format string, args ...any) {
-	if p.config.LogLevel >= Default {
+	if p.Config.LogLevel < options.Info {
 		return
 	}
 
@@ -77,7 +68,7 @@ func (p *printer) InfoA(format string, args ...any) {
 }
 
 func (p *printer) Progress(msg string) (finalize func()) {
-	if p.config.LogLevel >= Default {
+	if p.Config.LogLevel < options.Info {
 		return func() {}
 	}
 
@@ -98,7 +89,7 @@ func (p *printer) Progress(msg string) (finalize func()) {
 }
 
 func (p *printer) ProgressSteps(msg string, steps int) (step func(), finalize func()) {
-	if p.config.LogLevel >= Default {
+	if p.Config.LogLevel < options.Info {
 		return func() {}, func() {}
 	}
 
@@ -127,7 +118,7 @@ func (p *printer) ProgressSteps(msg string, steps int) (step func(), finalize fu
 }
 
 func (p *printer) Table(data [][]string) {
-	if p.config.LogLevel >= Default {
+	if p.Config.LogLevel < options.Info {
 		return
 	}
 
@@ -151,7 +142,7 @@ func NewPrinter(config PrinterConfig) Printer {
 	}
 
 	printer := &printer{
-		config: config,
+		Config: config,
 	}
 
 	return printer

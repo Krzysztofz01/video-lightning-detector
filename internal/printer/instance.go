@@ -3,6 +3,7 @@ package printer
 import (
 	"os"
 
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/pterm/pterm"
 )
 
@@ -10,7 +11,7 @@ var instance Printer
 
 var defaultPrinterConfig = PrinterConfig{
 	UseColor:  true,
-	LogLevel:  Default,
+	LogLevel:  options.Info,
 	OutStream: os.Stdout,
 }
 
@@ -19,7 +20,7 @@ func init() {
 }
 
 func Configure(config PrinterConfig) {
-	if config.LogLevel < Default {
+	if config.LogLevel < options.Info {
 		pterm.EnableDebugMessages()
 	} else {
 		pterm.DisableDebugMessages()
