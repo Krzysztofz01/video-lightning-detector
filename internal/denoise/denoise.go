@@ -5,19 +5,13 @@ import (
 	"image"
 	"image/draw"
 
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/esimov/stackblur-go"
 )
 
-func IsValidAlgorithm(s Algorithm) bool {
-	switch s {
-	case NoDenoise, StackBlur8, StackBlur16, StackBlur32:
-		return true
-	default:
-		return false
-	}
-}
+// TODO: Research and implement bilateral filter
 
-func Denoise(src image.Image, dst *image.RGBA, s Algorithm) error {
+func Denoise(src image.Image, dst *image.RGBA, a options.DenoiseAlgorithm) error {
 	if src == nil {
 		return fmt.Errorf("denoise: the source image reference is nil")
 	}
@@ -30,14 +24,14 @@ func Denoise(src image.Image, dst *image.RGBA, s Algorithm) error {
 		return fmt.Errorf("denoise: source and destination images bounds missmatch")
 	}
 
-	switch s {
-	case NoDenoise:
+	switch a {
+	case options.NoDenoise:
 		return noDenoise(src, dst)
-	case StackBlur8:
+	case options.StackBlur8:
 		return stackBlurDenoise(src, dst, 8)
-	case StackBlur16:
+	case options.StackBlur16:
 		return stackBlurDenoise(src, dst, 16)
-	case StackBlur32:
+	case options.StackBlur32:
 		return stackBlurDenoise(src, dst, 32)
 	default:
 		return fmt.Errorf("denoise: invalid denoise strategy specified")
