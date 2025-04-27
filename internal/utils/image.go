@@ -38,7 +38,9 @@ func Otsu(i image.Image) float64 {
 	histogram := [256]int{}
 	for y := 0; y < i.Bounds().Dy(); y += 1 {
 		for x := 0; x < i.Bounds().Dx(); x += 1 {
-			gsf := ColorToGrayscale(i.At(x, y))
+			// TODO: Improve the implementation to make it RGB dedicated
+			c := ColorToRgba(i.At(x, y))
+			gsf := ColorToGrayscale(c.R, c.G, c.B)
 			gs := int(gsf * 255.0)
 
 			histogram[gs] += 1
