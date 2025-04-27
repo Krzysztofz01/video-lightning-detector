@@ -96,7 +96,7 @@ func init() {
 		DetectorOptions.FrameScalingFactor,
 		"The frame scaling factor used to downscale frames for better performance.")
 
-	rootCmd.PersistentFlags().VarPF(
+	rootCmd.PersistentFlags().VarP(
 		&DetectorOptions.Denoise,
 		"denoise", "n",
 		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
@@ -124,6 +124,17 @@ func init() {
 		"strict-explicit-threshold",
 		DetectorOptions.StrictExplicitThreshold,
 		"Value indicating if explicit thresholds range should be validated.")
+
+	rootCmd.PersistentFlags().StringVar(
+		&DetectorOptions.DetectionBoundsExpression,
+		"detection-bounds-expression",
+		DetectorOptions.DetectionBoundsExpression,
+		"Expression indicating the top left point of a detection bounding box and its dimensions. Example: 0:0:100:200")
+
+	rootCmd.PersistentFlags().Var(
+		&DetectorOptions.ScaleAlgorithm,
+		"scaling-algorithm",
+		"Interpolation sampling algorithm that will be used for the scaling.")
 }
 
 func Execute(args []string) {

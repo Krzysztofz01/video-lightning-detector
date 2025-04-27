@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"math"
+	"io"
 	"os"
 	"path"
+	"slices"
 	"time"
 
-	vidio "github.com/AlexEidt/Vidio"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/export"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
@@ -17,6 +17,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/video"
 )
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
@@ -119,21 +120,39 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 	videoAnalysisTime := time.Now()
 	detector.renderer.LogDebug("Starting the video analysis stage.")
 
-	video, err := vidio.NewVideo(inputVideoPath)
+	video, err := video.NewVideo(inputVideoPath)
 	if err != nil {
 		return nil, fmt.Errorf("detector: failed to open the video file for the analysis stage: %w", err)
 	}
 
 	defer video.Close()
 
-	targetWidth := int(float64(video.Width()) * detector.options.FrameScalingFactor)
-	targetHeight := int(float64(video.Height()) * detector.options.FrameScalingFactor)
+	if err := video.SetScale(detector.options.FrameScalingFactor); err != nil {
+		return nil, fmt.Errorf("detector: failed to set the video scaling to the given frame scaling factor: %w", err)
+	}
 
-	frameCurrentBuffer := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
-	video.SetFrameBuffer(frameCurrentBuffer.Pix)
+	if err := video.SetScaleAlgorithm(detector.options.ScaleAlgorithm); err != nil {
+		return nil, fmt.Errorf("detector: failed to set the video scaling algorithm for the video: %w", err)
+	}
 
+	if len(detector.options.DetectionBoundsExpression) != 0 {
+		x, y, w, h, err := utils.ParseBoundsExpression(detector.options.DetectionBoundsExpression)
+		if err != nil {
+			return nil, fmt.Errorf("detector: failed to parse the detection bounds expression: %w", err)
+		}
+
+		if err := video.SetBbox(x, y, w, h); err != nil {
+			return nil, fmt.Errorf("detector: failed to apply the detection bounds to the video: %w", err)
+		}
+	}
+
+	targetWidth, targetHeight := video.GetOutputDimensions()
 	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 	framePrevious := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+
+	if err := video.SetFrameBuffer(frameCurrent.Pix); err != nil {
+		return nil, fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
+	}
 
 	frameNumber := 1
 	frameCount := video.Frames()
@@ -141,12 +160,14 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 
 	progressBarStep, progressBarClose := detector.renderer.Progress("Video analysis stage.", frameCount)
 
-	for video.Read() {
-		if err := utils.ScaleImage(frameCurrentBuffer, frameCurrent, detector.options.FrameScalingFactor); err != nil {
-			return nil, fmt.Errorf("detector: failed to scale the current frame image on the analyze stage: %w", err)
+	for {
+		if err := video.Read(); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("detector: failed to read the video frame: %w", err)
 		}
 
-		if detector.options.Denoise != denoise.NoDenoise {
+		if detector.options.Denoise != options.NoDenoise {
 			if err := denoise.Denoise(frameCurrent, frameCurrent, detector.options.Denoise); err != nil {
 				return nil, fmt.Errorf("detector: failed to apply denoise to the current frame image on the analyze stage: %w", err)
 			}
@@ -159,6 +180,8 @@ func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.Fr
 
 		frameNumber += 1
 		progressBarStep()
+
+		// TODO: This can be run concurrently together with CreateNewFrame on separeted goroutines but will require a double-buffered framePrevious.
 		copy(framePrevious.Pix, frameCurrent.Pix)
 	}
 
@@ -506,40 +529,40 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 }
 
 // NOTE: Experimental sampling of binary threshold from recording
-func (detector *detector) SampleBinaryThreshold(inputVideoPath string) (float64, error) {
-	video, err := vidio.NewVideo(inputVideoPath)
-	if err != nil {
-		return 0, fmt.Errorf("detector: failed to open the video file for the binary threshold sampling stage: %w", err)
-	}
+// func (detector *detector) SampleBinaryThreshold(inputVideoPath string) (float64, error) {
+// 	video, err := vidio.NewVideo(inputVideoPath)
+// 	if err != nil {
+// 		return 0, fmt.Errorf("detector: failed to open the video file for the binary threshold sampling stage: %w", err)
+// 	}
 
-	defer video.Close()
+// 	defer video.Close()
 
-	var (
-		frames      int     = video.Frames()
-		fps         float64 = video.FPS()
-		duration    float64 = float64(frames) / fps
-		sampleCount int     = int(math.Max(1.43*math.Log(duration/60)-0.64, 1))
-		framesStep  int     = frames / sampleCount
-	)
+// 	var (
+// 		frames      int     = video.Frames()
+// 		fps         float64 = video.FPS()
+// 		duration    float64 = float64(frames) / fps
+// 		sampleCount int     = int(math.Max(1.43*math.Log(duration/60)-0.64, 1))
+// 		framesStep  int     = frames / sampleCount
+// 	)
 
-	var sampleFrameIndexes []int = make([]int, 0, sampleCount)
-	for sampleIndex := 0; sampleIndex < sampleCount; sampleIndex += 1 {
-		sampleFrameIndexes = append(sampleFrameIndexes, sampleIndex*framesStep)
-	}
+// 	var sampleFrameIndexes []int = make([]int, 0, sampleCount)
+// 	for sampleIndex := 0; sampleIndex < sampleCount; sampleIndex += 1 {
+// 		sampleFrameIndexes = append(sampleFrameIndexes, sampleIndex*framesStep)
+// 	}
 
-	sampleFrames, err := video.ReadFrames(sampleFrameIndexes...)
-	if err != nil {
-		return 0, fmt.Errorf("detector: failed to read the specified frames from the video: %w", err)
-	}
+// 	sampleFrames, err := video.ReadFrames(sampleFrameIndexes...)
+// 	if err != nil {
+// 		return 0, fmt.Errorf("detector: failed to read the specified frames from the video: %w", err)
+// 	}
 
-	var thresholdSum float64 = 0
-	for _, sampleFrame := range sampleFrames {
-		thresholdSum += utils.Otsu(sampleFrame)
+// 	var thresholdSum float64 = 0
+// 	for _, sampleFrame := range sampleFrames {
+// 		thresholdSum += utils.Otsu(sampleFrame)
 
-	}
+// 	}
 
-	return thresholdSum / float64(sampleCount), nil
-}
+// 	return thresholdSum / float64(sampleCount), nil
+// }
 
 // Helper function used to export frame images which meet the requirement thresholds to png files.
 func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirectoryPath string, detections []int) error {
@@ -547,23 +570,34 @@ func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirecto
 	detector.renderer.LogDebug("Starting the frames export stage.")
 	detector.renderer.LogInfo("About to export %d frames.", len(detections))
 
-	video, err := vidio.NewVideo(inputVideoPath)
+	slices.Sort(detections)
+
+	video, err := video.NewVideo(inputVideoPath)
 	if err != nil {
-		return fmt.Errorf("detector: failed to open the video file for the frames export stage: %w", err)
+		return fmt.Errorf("detector: failed to open the video file for the frame export stage: %w", err)
 	}
 
 	defer video.Close()
 
-	progressBarStep, progressBarClose := detector.renderer.Progress("Video frames export stage.", len(detections))
+	targetWidth, targetHeight := video.GetOutputDimensions()
 
-	// TODO: Limit for large detections
-	frames, err := video.ReadFrames(detections...)
-	if err != nil {
-		return fmt.Errorf("detector: failed to read the specified frames from the video: %w", err)
+	frame := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+	if err := video.SetFrameBuffer(frame.Pix); err != nil {
+		return fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
 	}
 
-	for index, frame := range frames {
-		frameIndex := detections[index]
+	if err := video.SetTargetFrames(detections...); err != nil {
+		return fmt.Errorf("detector: failed to set the detection frames as the video target frames: %w", err)
+	}
+
+	progressBarStep, progressBarClose := detector.renderer.Progress("Video frames export stage.", len(detections))
+
+	for _, frameIndex := range detections {
+		if err := video.Read(); err == io.EOF {
+			break
+		} else if err != nil {
+			return fmt.Errorf("detector: failed to read the video export frame: %w", err)
+		}
 
 		frameImageName := fmt.Sprintf("frame-%d.png", frameIndex+1)
 		frameImagePath := path.Join(outputDirectoryPath, frameImageName)
