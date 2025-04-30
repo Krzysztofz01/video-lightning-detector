@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"os"
 	"path"
 	"slices"
 	"time"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/analyzer"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/export"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
@@ -53,9 +52,9 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 	runTime := time.Now()
 	detector.printer.InfoA("Starting the lightning hunt.")
 
-	var frames frame.FrameCollection
+	analyzer := analyzer.NewAnalyzer(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
 
-	frames, err := detector.GetAnalyzedFrames(inputVideoPath, outputDirectoryPath)
+	frames, err := analyzer.GetFrames()
 	if err != nil {
 		return fmt.Errorf("detector: video analysis stage failed: %w", err)
 	}
@@ -68,211 +67,11 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 
 	detections := detector.PerformVideoDetection(frames, descriptiveStatistics)
 
-	if detector.options.ImportPreanalyzed {
-		if err := detector.ExportPreanalyzedFrames(frames, outputDirectoryPath); err != nil {
-			return fmt.Errorf("detector: preanalyzed frames export stage failed: %w", err)
-		}
-	}
-
 	if err := detector.PerformExports(inputVideoPath, outputDirectoryPath, frames, descriptiveStatistics, detections); err != nil {
 		return fmt.Errorf("detector: export stage failed: %w", err)
 	}
 
 	detector.printer.InfoA("Lightning hunting took: %s", time.Since(runTime))
-	return nil
-}
-
-// Helper function used to perform the analysis of the video frames. Depending on the options, this function will perform
-// the analysis or import the result of the previous analysis with a fallback to a standard analysis.
-func (detector *detector) GetAnalyzedFrames(inputVideoPath, outputDirectoryPath string) (frame.FrameCollection, error) {
-	var (
-		frames         frame.FrameCollection
-		wasPreanalzyed bool
-		err            error
-	)
-
-	if detector.options.ImportPreanalyzed {
-		preanalizedImportTime := time.Now()
-
-		frames, wasPreanalzyed, err = detector.ImportPreanalyzedFrames(outputDirectoryPath)
-		if err != nil {
-			return nil, fmt.Errorf("detector: failed to import the preanalyzed frames: %w", err)
-		}
-
-		if wasPreanalzyed {
-			detector.printer.Info("Importing the pre-analyzed frames data. Stage took: %s", time.Since(preanalizedImportTime))
-			return frames, nil
-		}
-
-		detector.printer.Warning("No exported pre-analzyed frames JSON file found. Fallback to frames analysis.")
-	}
-
-	if frames, err = detector.PerformFramesAnalysis(inputVideoPath); err != nil {
-		return nil, fmt.Errorf("detector: failed to perform the frames analysis: %w", err)
-	} else {
-		return frames, nil
-	}
-}
-
-// Helper function used to iterate over the video frames in order to generate a collection of frames instances containing
-// processed values about given frames and neighbouring frames relations.
-func (detector *detector) PerformFramesAnalysis(inputVideoPath string) (frame.FrameCollection, error) {
-	videoAnalysisTime := time.Now()
-	detector.printer.Debug("Starting the video analysis stage.")
-
-	video, err := video.NewVideo(inputVideoPath)
-	if err != nil {
-		return nil, fmt.Errorf("detector: failed to open the video file for the analysis stage: %w", err)
-	}
-
-	defer video.Close()
-
-	if err := video.SetScale(detector.options.FrameScalingFactor); err != nil {
-		return nil, fmt.Errorf("detector: failed to set the video scaling to the given frame scaling factor: %w", err)
-	}
-
-	if err := video.SetScaleAlgorithm(detector.options.ScaleAlgorithm); err != nil {
-		return nil, fmt.Errorf("detector: failed to set the video scaling algorithm for the video: %w", err)
-	}
-
-	if len(detector.options.DetectionBoundsExpression) != 0 {
-		x, y, w, h, err := utils.ParseBoundsExpression(detector.options.DetectionBoundsExpression)
-		if err != nil {
-			return nil, fmt.Errorf("detector: failed to parse the detection bounds expression: %w", err)
-		}
-
-		if err := video.SetBbox(x, y, w, h); err != nil {
-			return nil, fmt.Errorf("detector: failed to apply the detection bounds to the video: %w", err)
-		}
-	}
-
-	targetWidth, targetHeight := video.GetOutputDimensions()
-	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-	framePrevious := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-
-	if err := video.SetFrameBuffer(frameCurrent.Pix); err != nil {
-		return nil, fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
-	}
-
-	frameNumber := 1
-	frameCount := video.Frames()
-	frames := frame.CreateNewFrameCollection(frameCount)
-
-	progressStep, progressFinalize := detector.printer.ProgressSteps("Video analysis stage.", frameCount)
-
-	for {
-		if err := video.Read(); err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, fmt.Errorf("detector: failed to read the video frame: %w", err)
-		}
-
-		if detector.options.Denoise != options.NoDenoise {
-			if err := denoise.Denoise(frameCurrent, frameCurrent, detector.options.Denoise); err != nil {
-				return nil, fmt.Errorf("detector: failed to apply denoise to the current frame image on the analyze stage: %w", err)
-			}
-		}
-
-		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber, frame.BinaryThresholdParam)
-		frames.Append(frame)
-
-		detector.printer.Debug("Frame: [%d/%d]. Brightness: %f ColorDiff: %f BTDiff: %f", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference)
-
-		frameNumber += 1
-		progressStep()
-
-		// TODO: This can be run concurrently together with CreateNewFrame on separeted goroutines but will require a double-buffered framePrevious.
-		copy(framePrevious.Pix, frameCurrent.Pix)
-	}
-
-	progressFinalize()
-	detector.printer.Debug("Video analysis stage finished. Stage took: %s", time.Since(videoAnalysisTime))
-	return frames, nil
-}
-
-// Helper function used to import the pre-analyzed frames collection from the JSON export file.
-func (detector *detector) ImportPreanalyzedFrames(outputDirectoryPath string) (frame.FrameCollection, bool, error) {
-	frameCollectionCachePath := path.Join(outputDirectoryPath, options.FrameCollectionCacheFilename)
-	if !utils.FileExists(frameCollectionCachePath) {
-		return nil, false, nil
-	}
-
-	frameCollectionCacheFile, err := os.Open(frameCollectionCachePath)
-	if err != nil {
-		return nil, true, fmt.Errorf("detector: failed to open the frame collection cache with preanalyzed frames: %w", err)
-	}
-
-	defer func() {
-		if err := frameCollectionCacheFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	optionsChecksum, err := options.CalculateChecksum(detector.options)
-	if err != nil {
-		return nil, true, fmt.Errorf("detector: failed to access the detector options checksum: %w", err)
-	}
-
-	frames, checksum, err := frame.ImportCachedFrameCollection(frameCollectionCacheFile)
-	if err != nil {
-		return nil, true, fmt.Errorf("detector: failed to import the json frames report with preanalyzed frames: %w", err)
-	}
-
-	if optionsChecksum != checksum {
-		return nil, false, nil
-	}
-
-	return frames, true, nil
-}
-
-func (detector *detector) ExportPreanalyzedFrames(fc frame.FrameCollection, outputDirectoryPath string) error {
-	frameCollectionCachePath := path.Join(outputDirectoryPath, options.FrameCollectionCacheFilename)
-
-	var (
-		frameCollectionCacheFile *os.File
-		optionsChecksum          string
-		err                      error
-	)
-
-	if optionsChecksum, err = options.CalculateChecksum(detector.options); err != nil {
-		return fmt.Errorf("detector: failed to access the options checksum: %w", err)
-	}
-
-	defer func() {
-		if frameCollectionCacheFile == nil {
-			return
-		}
-
-		if err := frameCollectionCacheFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	if utils.FileExists(frameCollectionCachePath) {
-		frameCollectionCacheFile, err = os.Open(frameCollectionCachePath)
-		if err != nil {
-			return fmt.Errorf("detector: failed to open the frame collection cache with preanalyzed frames: %w", err)
-		}
-
-		var importedChecksum string
-		if _, importedChecksum, err = frame.ImportCachedFrameCollection(frameCollectionCacheFile); err != nil {
-			return fmt.Errorf("detector: failed to access the cached frame collection: %w", err)
-		}
-
-		if optionsChecksum == importedChecksum {
-			return nil
-		}
-	}
-
-	frameCollectionCacheFile, err = utils.CreateFileWithTree(frameCollectionCachePath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to creatae the frame collection cache with preanalyzed frames: %w", err)
-	}
-
-	if err := fc.ExportCache(frameCollectionCacheFile, optionsChecksum); err != nil {
-		return fmt.Errorf("detector: failed to export the preanalyzed frames cache: %w", err)
-	}
-
 	return nil
 }
 
