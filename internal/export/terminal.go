@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/render"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 )
 
-func RenderDescriptiveStatistics(r render.Renderer, ds statistics.DescriptiveStatistics) error {
-	r.Table([][]string{
+func PrintDescriptiveStatistics(p printer.Printer, ds statistics.DescriptiveStatistics, l options.LogLevel) error {
+	if !p.IsLogLevel(l) {
+		return nil
+	}
+
+	p.Table([][]string{
 		{"Frame brightness mean", strconv.FormatFloat(ds.BrightnessMean, 'f', -1, 64)},
 		{"Frame brightness standard deviation", strconv.FormatFloat(ds.BrightnessStandardDeviation, 'f', -1, 64)},
 		{"Frame brightness max", strconv.FormatFloat(ds.BrightnessMax, 'f', -1, 64)},
@@ -24,8 +29,12 @@ func RenderDescriptiveStatistics(r render.Renderer, ds statistics.DescriptiveSta
 	return nil
 }
 
-func RenderConfusionMatrix(r render.Renderer, cm statistics.ConfusionMatrix) error {
-	r.Table([][]string{
+func PrintConfusionMatrix(p printer.Printer, cm statistics.ConfusionMatrix, l options.LogLevel) error {
+	if !p.IsLogLevel(l) {
+		return nil
+	}
+
+	p.Table([][]string{
 		{"TP", "[True positive]", fmt.Sprintf("%f", cm.Tp)},
 		{"TN", "[True negative]", fmt.Sprintf("%f", cm.Tn)},
 		{"FP", "[False positive]", fmt.Sprintf("%f", cm.Fp)},
