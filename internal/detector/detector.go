@@ -51,7 +51,7 @@ func CreateDetector(printer printer.Printer, options options.DetectorOptions) (D
 // Perform a lightning detection on the provided video specified by the file path and store the results at the specified directory path.
 func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error {
 	runTime := time.Now()
-	detector.printer.Info("Starting the lightning hunt.")
+	detector.printer.InfoA("Starting the lightning hunt.")
 
 	var frames frame.FrameCollection
 
@@ -78,7 +78,7 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 		return fmt.Errorf("detector: export stage failed: %w", err)
 	}
 
-	detector.printer.Info("Lightning hunting took: %s", time.Since(runTime))
+	detector.printer.InfoA("Lightning hunting took: %s", time.Since(runTime))
 	return nil
 }
 
@@ -415,7 +415,7 @@ func (detector *detector) PerformVideoDetection(framesCollection frame.FrameColl
 func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath string, fc frame.FrameCollection, ds statistics.DescriptiveStatistics, detections []int) error {
 	exportTime := time.Now()
 
-	if err := export.RenderDescriptiveStatistics(detector.printer, ds); err != nil {
+	if err := export.PrintDescriptiveStatistics(detector.printer, ds, options.Verbose); err != nil {
 		return fmt.Errorf("detector: failed to export descriptive statistics: %w", err)
 	}
 
@@ -435,6 +435,10 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 		detector.printer.Debug("Frames used as actual detection classification: %v", actualClassification)
 
 		confusionMatrix = statistics.CreateConfusionMatrix(actualClassification, detections, fc.Count())
+
+		if err := export.PrintConfusionMatrix(detector.printer, confusionMatrix, options.Verbose); err != nil {
+			return fmt.Errorf("detector: failed to export the confusion matrix: %w", err)
+		}
 	}
 
 	if detector.options.ExportCsvReport {
@@ -513,17 +517,6 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 		chartProgressFinalize()
 	}
 
-	if detector.options.ExportConfusionMatrix {
-		conmatProgressFinalize := detector.printer.Progress("Exporting confusion matrix")
-		defer conmatProgressFinalize()
-
-		if err := export.RenderConfusionMatrix(detector.printer, confusionMatrix); err != nil {
-			return fmt.Errorf("detector: failed to export the confusion matrix: %w", err)
-		}
-
-		conmatProgressFinalize()
-	}
-
 	detector.printer.Info("Export finished. Stage took: %s", time.Since(exportTime))
 	return nil
 }
@@ -568,7 +561,7 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirectoryPath string, detections []int) error {
 	framesExportTime := time.Now()
 	detector.printer.Debug("Starting the frames export stage.")
-	detector.printer.InfoA("About to export %d frames.", len(detections))
+	detector.printer.Info("About to export %d frames.", len(detections))
 
 	slices.Sort(detections)
 

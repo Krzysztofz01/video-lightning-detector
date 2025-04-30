@@ -37,6 +37,7 @@ type Printer interface {
 	Progress(msg string) (finalize func())
 	ProgressSteps(msg string, steps int) (step func(), finalize func())
 	Table(data [][]string)
+	IsLogLevel(l options.LogLevel) bool
 }
 
 type printer struct {
@@ -48,7 +49,7 @@ func (p *printer) Debug(format string, args ...any) {
 		return
 	}
 
-	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.DescriptionMessageStyle).Printf(format, args...)
+	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.DescriptionMessageStyle).Printfln(format, args...)
 }
 
 func (p *printer) Error(format string, args ...any) {
@@ -134,6 +135,10 @@ func (p *printer) Table(data [][]string) {
 
 func (p *printer) Warning(format string, args ...any) {
 	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.WarningMessageStyle).Printfln(format, args...)
+}
+
+func (p *printer) IsLogLevel(l options.LogLevel) bool {
+	return p.Config.LogLevel >= l
 }
 
 func NewPrinter(config PrinterConfig) Printer {
