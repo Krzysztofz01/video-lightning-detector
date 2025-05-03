@@ -3,19 +3,62 @@ package detector
 import (
 	"testing"
 
+	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDetectionBufferShouldCreate(t *testing.T) {
-	buffer := CreateDetectionBuffer()
+func TestDiscreteDetectionBufferShouldCreate(t *testing.T) {
+	cases := map[DetectionStrategy]bool{
+		AboveMovingMeanAllWeights: true,
+		AboveGlobalMeanAllWeights: true,
+		AboveZeroAllWeights:       true,
+		-1:                        false,
+	}
 
-	assert.NotNil(t, buffer)
+	for strategy, validStrategy := range cases {
+		if validStrategy {
+			buffer := NewDiscreteDetectionBuffer(options.GetDefaultDetectorOptions(), strategy)
+
+			assert.NotNil(t, buffer)
+		} else {
+			assert.Panics(t, func() {
+				NewDiscreteDetectionBuffer(options.GetDefaultDetectorOptions(), strategy)
+			})
+		}
+	}
 }
 
-func TestDetectionBufferShouldCorrectlyResolveAppendedValues(t *testing.T) {
+func TestDiscreteDetectionBufferCorrectlyResolveAppendedValues(t *testing.T) {
+	const (
+		brightnessThreshold                float64 = 0.5
+		colorDifferenceThreshold           float64 = 0.5
+		binaryThresholdDifferenceThreshold float64 = 0.5
+		delta                              float64 = 0.25
+	)
+
+	var (
+		options    options.DetectorOptions = options.GetDefaultDetectorOptions()
+		statistics statistics.DescriptiveStatisticsEntry
+	)
+
+	options.BrightnessDetectionThreshold = brightnessThreshold
+	options.ColorDifferenceDetectionThreshold = colorDifferenceThreshold
+	options.BinaryThresholdDifferenceDetectionThreshold = binaryThresholdDifferenceThreshold
+
+	times := func(v bool, n int) []bool {
+		values := make([]bool, 0, n)
+		for i := 0; i < n; i += 1 {
+			values = append(values, v)
+		}
+
+		return values
+	}
+
 	cases := []struct {
-		detections []bool
-		expected   []int
+		Frames   []bool
+		Expected []int
 	}{
 		{[]bool{false, false, false, false}, []int{}},
 		{[]bool{false, true, false, false}, []int{1}},
@@ -37,17 +80,38 @@ func TestDetectionBufferShouldCorrectlyResolveAppendedValues(t *testing.T) {
 		{[]bool{false, true, true, true, false}, []int{1, 2, 3}},
 		{[]bool{true, false, true, true, false}, []int{0, 1, 2, 3}},
 		{[]bool{true, true, true, true, false}, []int{0, 1, 2, 3}},
+		{append(times(false, 30), false, false, true, true, false), []int{30 + 2, 30 + 3}},
+		{append(times(false, 30), false, true, true, true, false), []int{30 + 1, 30 + 2, 30 + 3}},
+		{append(times(false, 30), true, false, true, true, false), []int{30 + 0, 30 + 1, 30 + 2, 30 + 3}},
+		{append(times(false, 30), true, true, true, true, false), []int{30 + 0, 30 + 1, 30 + 2, 30 + 3}},
 	}
 
 	for _, c := range cases {
-		buffer := CreateDetectionBuffer()
-		for frameIndex, detected := range c.detections {
-			buffer.Append(frameIndex, detected, detected, detected)
+		frames := make([]*frame.Frame, 0, len(c.Frames))
+		for index, detection := range c.Frames {
+			var sign float64
+			if detection {
+				sign = 1
+			} else {
+				sign = -1
+			}
+
+			frames = append(frames, &frame.Frame{
+				OrdinalNumber:             index + 1,
+				ColorDifference:           colorDifferenceThreshold + (delta * sign),
+				BinaryThresholdDifference: binaryThresholdDifferenceThreshold + (delta * sign),
+				Brightness:                brightnessThreshold + (delta * sign),
+			})
 		}
 
-		actual := buffer.ResolveClassifiedIndex()
+		detectionBuffer := NewDiscreteDetectionBuffer(options, AboveZeroAllWeights)
+		for _, frame := range frames {
+			err := detectionBuffer.Push(frame, statistics)
+			assert.Nil(t, err)
+		}
 
+		actual := detectionBuffer.ResolveIndexes()
 		assert.NotNil(t, actual)
-		assert.Equal(t, c.expected, actual)
+		assert.Equal(t, c.Expected, actual)
 	}
 }
