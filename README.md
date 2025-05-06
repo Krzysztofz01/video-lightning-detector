@@ -11,15 +11,19 @@
 
 **Work on the project is still in progress. Work is ongoing to further improve the quality of the classifications made and the processing time.** 
 
-The project aims to automate the process of analysing video footage to detect frames that capture lightning strikes. The workflow of the program consists of several stages such as analysis, detection and export. The user of the tool indicates the selected video recording and the operating parameters of the individual stages, including options that determine, whether the thresholds that define a detection are to be determined automatically or to be set manually. During the analysis, frames are analysed in terms of:
+The project aims to automate the process of analyzing video footage to detect frames that capture lightning strikes. The workflow of the program consists of several stages such as analysis, detection and export. The user of the tool indicates the selected video recording and the operating parameters of the individual stages, including options that determine whether the thresholds that define a detection are to be determined automatically or to be set manually. During the analysis, frames are analyzed in terms of:
+
 - perceived brightness
-- channel based differences between neighbouring frames
-- segmentation based differences between neighbouring frames.
+- channel based differences between neighboring frames
+- segmentation based differences between neighboring frames.
+
 The detection stage performs a binary classification based on the calculated weights and indicates whether a given frame of footage captures a lightning strike. The program allows to export positively classified frames to image files. There is also a possibility to export various statistics in CSV and JSON format for further research. The tool is dedicated to:
+
 - photographers
 - storm chasers
 - data engineers and software developers
-to automate their photography work, automatic data labelling and more.
+
+to automate their photography work, automatic data labeling and more.
 
 **Detailed functioning of the program and the algorithms used are described in my thesis, which will be published in the future.**
 
@@ -28,7 +32,7 @@ Required software to build **vld**:
 - **[git](https://git-scm.com/)** - Used to download the source code from the repository.
 - **[task](https://taskfile.dev/)** - Used as the main build tool.
 - **[go (version: 1.22+)](https://go.dev/)** - Used to compile the source code locally.
-- **[docker](https://www.docker.com/)** or **[podman](https://podman.io/)** - (Optional) Used to build the the tool image.
+- **[docker](https://www.docker.com/)** or **[podman](https://podman.io/)** - (Optional) Used to build the tool image.
 
 Required software to use **vld**:
 - **[ffmpeg](https://ffmpeg.org/)** - Used as the main video decoding and frame extraction tool.
@@ -98,7 +102,7 @@ Check if vld and other required binaries are configured correctly.
 vld check
 ```
 
-Running the detector with default values and auto-threshold calculation. The most automated apporach.
+Running the detector with default values and auto-threshold calculation. The most automated approach.
 ```sh
 vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a
 ```
@@ -108,7 +112,7 @@ The detection takes ages to complete? Running the detector with frame scaling to
 vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -s 0.1
 ```
 
-The recording noise or movement on the video is causing false positives? Lets additionaly apply noise reduction.
+The recording noise or movement on the video is causing false positives? Lets additionally apply noise reduction.
 ```sh
 vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -n
 ```
