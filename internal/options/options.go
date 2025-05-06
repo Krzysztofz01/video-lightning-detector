@@ -71,6 +71,29 @@ func (options *DetectorOptions) AreValid() (bool, string) {
 	return true, ""
 }
 
+// Create a copy of the detector option
+func (options *DetectorOptions) Clone() DetectorOptions {
+	return DetectorOptions{
+		AutoThresholds:                              options.AutoThresholds,
+		BrightnessDetectionThreshold:                options.BrightnessDetectionThreshold,
+		ColorDifferenceDetectionThreshold:           options.ColorDifferenceDetectionThreshold,
+		BinaryThresholdDifferenceDetectionThreshold: options.BinaryThresholdDifferenceDetectionThreshold,
+		MovingMeanResolution:                        options.MovingMeanResolution,
+		ExportCsvReport:                             options.ExportCsvReport,
+		ExportJsonReport:                            options.ExportJsonReport,
+		ExportChartReport:                           options.ExportChartReport,
+		ExportConfusionMatrix:                       options.ExportConfusionMatrix,
+		ConfusionMatrixActualDetectionsExpression:   options.ConfusionMatrixActualDetectionsExpression,
+		SkipFramesExport:                            options.SkipFramesExport,
+		Denoise:                                     options.Denoise,
+		FrameScalingFactor:                          options.FrameScalingFactor,
+		ImportPreanalyzed:                           options.ImportPreanalyzed,
+		StrictExplicitThreshold:                     options.StrictExplicitThreshold,
+		DetectionBoundsExpression:                   options.DetectionBoundsExpression,
+		ScaleAlgorithm:                              options.ScaleAlgorithm,
+	}
+}
+
 // Return the default detector options.
 func GetDefaultDetectorOptions() DetectorOptions {
 	return DetectorOptions{
