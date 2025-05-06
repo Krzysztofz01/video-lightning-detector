@@ -71,7 +71,10 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 		}
 	}
 
-	detections := detector.PerformVideoDetection(frames, descriptiveStatistics)
+	detections, err := detector.PerformVideoDetection(frames, descriptiveStatistics)
+	if err != nil {
+		return fmt.Errorf("detector: video detection stage failed: %w", err)
+	}
 
 	if err := detector.PerformExports(inputVideoPath, outputDirectoryPath, frames, descriptiveStatistics, detections); err != nil {
 		return fmt.Errorf("detector: export stage failed: %w", err)
@@ -82,34 +85,34 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 }
 
 // Helper function used to filter out indecies representing frames wihich meet the requirement thresholds.
-func (detector *detector) PerformVideoDetection(framesCollection frame.FrameCollection, ds statistics.DescriptiveStatistics) []int {
+func (detector *detector) PerformVideoDetection(framesCollection frame.FrameCollection, ds statistics.DescriptiveStatistics) ([]int, error) {
 	videoDetectionTime := time.Now()
 	detector.printer.Debug("Starting the video detection stage.")
 
-	detectionBuffer := CreateDetectionBuffer()
-
-	frames := framesCollection.GetAll()
+	var (
+		frames          []*frame.Frame          = framesCollection.GetAll()
+		detectionBuffer DiscreteDetectionBuffer = NewDiscreteDetectionBuffer(detector.options, AboveMovingMeanAllWeights)
+		statistics      statistics.DescriptiveStatisticsEntry
+	)
 
 	progressStep, progressFinalize := detector.printer.ProgressSteps("Video detection stage.", len(frames))
 	defer progressFinalize()
 
 	for frameIndex, frame := range frames {
-		var (
-			brightnessClassified bool = frame.Brightness >= detector.options.BrightnessDetectionThreshold+ds.BrightnessMovingMean[frameIndex]
-			colorDiffClassified  bool = frame.ColorDifference >= detector.options.ColorDifferenceDetectionThreshold+ds.ColorDifferenceMovingMean[frameIndex]
-			btDiffClassified     bool = frame.BinaryThresholdDifference >= detector.options.BinaryThresholdDifferenceDetectionThreshold+ds.BinaryThresholdDifferenceMovingMean[frameIndex]
-		)
+		if err := ds.AtP(frameIndex, &statistics); err != nil {
+			return nil, fmt.Errorf("detector: failed to access frame descriptive statistics: %w", err)
+		}
 
-		// TODO: Verbose logging
-
-		detectionBuffer.Append(frameIndex, brightnessClassified, colorDiffClassified, btDiffClassified)
+		if err := detectionBuffer.Push(frame, statistics); err != nil {
+			return nil, fmt.Errorf("detector: failed to push the frame the detection buffer: %w", err)
+		}
 
 		progressStep()
 	}
 
 	detector.printer.Debug("Video detection stage finished. Stage took: %s", time.Since(videoDetectionTime))
 
-	return detectionBuffer.ResolveClassifiedIndex()
+	return detectionBuffer.ResolveIndexes(), nil
 }
 
 // Helper function used to perform exports to varius formats selected via the options

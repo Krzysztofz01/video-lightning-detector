@@ -1,119 +1,151 @@
 package detector
 
-const (
-	CandidateQueueSize int = 4
+import (
+	"fmt"
+	"slices"
+
+	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 )
 
-type DetectionBuffer interface {
-	Append(index int, brightnessClassified, colorDiffClassified, btDiffClassified bool)
+// TODO: Diagnostic classification logging via printer
+// TODO: Implement more tests
 
-	Resolve() []DetectionBufferElement
+const (
+	ClassificationRingQueueSize int = 4
+)
 
-	ResolveClassifiedIndex() []int
+type DetectionStrategy int
+
+const (
+	AboveMovingMeanAllWeights DetectionStrategy = iota
+	AboveGlobalMeanAllWeights
+	AboveZeroAllWeights
+)
+
+type DiscreteDetectionBuffer interface {
+	Push(f *frame.Frame, s statistics.DescriptiveStatisticsEntry) error
+	ResolveIndexes() []int
 }
 
-func CreateDetectionBuffer() DetectionBuffer {
-	return &detectionBuffer{
-		CandidateQueue:       make([]*DetectionBufferElement, 0),
-		DetectionsCollection: make([]*DetectionBufferElement, 0, CandidateQueueSize),
+type discreteDetectionBuffer struct {
+	Options             options.DetectorOptions
+	ClassificationQueue []detectionBufferElement
+	DetectionSet        map[int]bool
+	Strategy            DetectionStrategy
+}
+
+func (buffer *discreteDetectionBuffer) Push(f *frame.Frame, s statistics.DescriptiveStatisticsEntry) error {
+	queueLength := len(buffer.ClassificationQueue)
+	if queueLength > 0 && buffer.ClassificationQueue[queueLength-1].Index >= f.OrdinalNumber {
+		return fmt.Errorf("detector: frame pushing failed due to invalid ordinal number")
 	}
-}
 
-type detectionBuffer struct {
-	CandidateQueue       []*DetectionBufferElement
-	DetectionsCollection []*DetectionBufferElement
-}
+	cl := detectionBufferElement{
+		Index:                               f.OrdinalNumber,
+		ColorDifferenceClassified:           false,
+		BinaryThresholdDifferenceClassified: false,
+		BrightnessClassified:                false,
+	}
 
-func (buffer *detectionBuffer) Append(index int, brightnessClassified bool, colorDiffClassified bool, btDiffClassified bool) {
-	bufferElement := createDetectionBufferElement(index, brightnessClassified, colorDiffClassified, btDiffClassified)
+	switch buffer.Strategy {
+	case AboveMovingMeanAllWeights:
+		cl.BrightnessClassified = f.Brightness >= buffer.Options.BrightnessDetectionThreshold+s.BrightnessMovingMeanAtPoint
+		cl.ColorDifferenceClassified = f.ColorDifference >= buffer.Options.ColorDifferenceDetectionThreshold+s.ColorDifferenceMovingMeanAtPoint
+		cl.BinaryThresholdDifferenceClassified = f.BinaryThresholdDifference >= buffer.Options.BinaryThresholdDifferenceDetectionThreshold+s.BinaryThresholdDifferenceMovingMeanAtPoint
+	case AboveGlobalMeanAllWeights:
+		cl.BrightnessClassified = f.Brightness >= buffer.Options.BrightnessDetectionThreshold+s.BrightnessMean
+		cl.ColorDifferenceClassified = f.ColorDifference >= buffer.Options.ColorDifferenceDetectionThreshold+s.ColorDifferenceMean
+		cl.BinaryThresholdDifferenceClassified = f.BinaryThresholdDifference >= buffer.Options.BinaryThresholdDifferenceDetectionThreshold+s.BinaryThresholdDifferenceMean
+	case AboveZeroAllWeights:
+		cl.BrightnessClassified = f.Brightness >= buffer.Options.BrightnessDetectionThreshold
+		cl.ColorDifferenceClassified = f.ColorDifference >= buffer.Options.ColorDifferenceDetectionThreshold
+		cl.BinaryThresholdDifferenceClassified = f.BinaryThresholdDifference >= buffer.Options.BinaryThresholdDifferenceDetectionThreshold
+	default:
+		panic("detector: invalid detection strategy specified")
+	}
 
-	buffer.DetectionsCollection = append(buffer.DetectionsCollection, bufferElement)
-
-	if len(buffer.CandidateQueue) < CandidateQueueSize {
-		buffer.CandidateQueue = append(buffer.CandidateQueue, bufferElement)
+	if len(buffer.ClassificationQueue) < ClassificationRingQueueSize {
+		buffer.ClassificationQueue = append(buffer.ClassificationQueue, cl)
 	} else {
-		buffer.CandidateQueue = append(buffer.CandidateQueue[1:], bufferElement)
+		buffer.ClassificationQueue = append(buffer.ClassificationQueue[1:], cl)
 	}
 
-	if len(buffer.CandidateQueue) == CandidateQueueSize {
-		buffer.ClassifyCandidateQueue()
+	buffer.ResolveClassificationQueue()
+	return nil
+}
+
+func (buffer *discreteDetectionBuffer) ResolveClassificationQueue() {
+	if len(buffer.ClassificationQueue) < ClassificationRingQueueSize {
+		for _, e := range buffer.ClassificationQueue {
+			if e.BrightnessClassified && e.ColorDifferenceClassified && e.BinaryThresholdDifferenceClassified {
+				buffer.DetectionSet[e.Index] = true
+			}
+		}
+
+		return
+	}
+
+	var (
+		c0  = buffer.ClassificationQueue[0]
+		c1  = buffer.ClassificationQueue[1]
+		c2  = buffer.ClassificationQueue[2]
+		c3  = buffer.ClassificationQueue[3]
+		wc0 = c0.BrightnessClassified && c0.ColorDifferenceClassified && c0.BinaryThresholdDifferenceClassified
+		wc1 = c1.BrightnessClassified && c1.ColorDifferenceClassified && c1.BinaryThresholdDifferenceClassified
+		wc2 = c2.BrightnessClassified && c2.ColorDifferenceClassified && c2.BinaryThresholdDifferenceClassified
+		wc3 = c3.BrightnessClassified && c3.ColorDifferenceClassified && c3.BinaryThresholdDifferenceClassified
+	)
+
+	if wc0 {
+		buffer.DetectionSet[c0.Index] = true
+	}
+
+	if wc1 || (wc0 && wc3) || (wc0 && wc2) {
+		buffer.DetectionSet[c1.Index] = true
+	}
+
+	if wc2 || (wc1 && wc3) || (wc0 && wc3) {
+		buffer.DetectionSet[c2.Index] = true
+	}
+
+	if wc3 {
+		buffer.DetectionSet[c3.Index] = true
 	}
 }
 
-func (buffer *detectionBuffer) Resolve() []DetectionBufferElement {
-	detections := make([]DetectionBufferElement, 0, len(buffer.DetectionsCollection))
-	for _, detection := range buffer.DetectionsCollection {
-		detections = append(detections, *detection)
-	}
-
-	return detections
-}
-
-func (buffer *detectionBuffer) ResolveClassifiedIndex() []int {
-	classifiedIndices := make([]int, 0)
-	for _, detection := range buffer.DetectionsCollection {
-		if detection.FinalClassification() {
-			classifiedIndices = append(classifiedIndices, detection.Index)
+func (buffer *discreteDetectionBuffer) ResolveIndexes() []int {
+	indexes := make([]int, 0)
+	for index, ok := range buffer.DetectionSet {
+		if ok {
+			// NOTE: The detection set is holding frame 1-indexed ordinal numbers, and the detector expectes to return 0-indexed frames indexes
+			indexes = append(indexes, index-1)
 		}
 	}
 
-	return classifiedIndices
+	slices.Sort(indexes)
+	return indexes
 }
 
-func (buffer *detectionBuffer) ClassifyCandidateQueue() {
-	var (
-		aElement  = buffer.CandidateQueue[0]
-		bElement  = buffer.CandidateQueue[1]
-		cElement  = buffer.CandidateQueue[2]
-		dElement  = buffer.CandidateQueue[3]
-		aDetected = aElement.ClassifiedViaWeights
-		bDetected = bElement.ClassifiedViaWeights
-		cDetected = cElement.ClassifiedViaWeights
-		dDetected = dElement.ClassifiedViaWeights
-	)
-
-	if aDetected {
-		aElement.SetCorrectedViaBuffer()
+func NewDiscreteDetectionBuffer(opt options.DetectorOptions, s DetectionStrategy) DiscreteDetectionBuffer {
+	switch s {
+	case AboveMovingMeanAllWeights, AboveGlobalMeanAllWeights, AboveZeroAllWeights:
+	default:
+		panic("detector: invalid detection strategy specified")
 	}
 
-	if bDetected || (aDetected && dDetected) || (aDetected && cDetected) {
-		bElement.SetCorrectedViaBuffer()
-	}
-
-	if cDetected || (bDetected && dDetected) || (aDetected && dDetected) {
-		cElement.SetCorrectedViaBuffer()
-	}
-
-	if dDetected {
-		dElement.SetCorrectedViaBuffer()
+	return &discreteDetectionBuffer{
+		Options:             opt,
+		ClassificationQueue: make([]detectionBufferElement, 0, ClassificationRingQueueSize),
+		DetectionSet:        make(map[int]bool, 0),
+		Strategy:            s,
 	}
 }
 
-type DetectionBufferElement struct {
+type detectionBufferElement struct {
 	Index                               int
-	BrightnessClassified                bool
 	ColorDifferenceClassified           bool
 	BinaryThresholdDifferenceClassified bool
-	ClassifiedViaWeights                bool
-	CorrectedViaBuffer                  bool
-}
-
-func createDetectionBufferElement(index int, brightnessClassified, colorDiffClassified, btDiffClassified bool) *DetectionBufferElement {
-	classified := brightnessClassified && colorDiffClassified && btDiffClassified
-
-	return &DetectionBufferElement{
-		Index:                               index,
-		BrightnessClassified:                brightnessClassified,
-		ColorDifferenceClassified:           colorDiffClassified,
-		BinaryThresholdDifferenceClassified: btDiffClassified,
-		ClassifiedViaWeights:                classified,
-	}
-}
-
-func (e *DetectionBufferElement) SetCorrectedViaBuffer() {
-	e.CorrectedViaBuffer = true
-}
-
-func (e *DetectionBufferElement) FinalClassification() bool {
-	return e.ClassifiedViaWeights || (!e.ClassifiedViaWeights && e.CorrectedViaBuffer)
+	BrightnessClassified                bool
 }
