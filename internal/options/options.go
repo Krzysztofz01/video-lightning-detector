@@ -4,8 +4,6 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-const FrameCollectionCacheFilename string = "video-lightning-detector.cache"
-
 // Structure representing the options for the detector.
 type DetectorOptions struct {
 	AutoThresholds                              bool
