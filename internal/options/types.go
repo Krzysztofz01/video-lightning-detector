@@ -23,6 +23,15 @@ func IsValidDenoiseAlgorithm(a DenoiseAlgorithm) bool {
 	}
 }
 
+func GetDenoiseAlgorithmValues() []string {
+	values := make([]string, 0, len(denoiseAlgorithmNames))
+	for value := range denoiseAlgorithmNames {
+		values = append(values, value)
+	}
+
+	return values
+}
+
 var denoiseAlgorithmNames = map[string]DenoiseAlgorithm{
 	"none":        NoDenoise,
 	"stackblur8":  StackBlur8,
@@ -72,6 +81,15 @@ func IsValidScaleAlgorithm(a ScaleAlgorithm) bool {
 	default:
 		return false
 	}
+}
+
+func GetScaleAlgorithmValues() []string {
+	values := make([]string, 0, len(scaleAlgorithmNames))
+	for value := range scaleAlgorithmNames {
+		values = append(values, value)
+	}
+
+	return values
 }
 
 var scaleAlgorithmNames = map[string]ScaleAlgorithm{

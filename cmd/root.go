@@ -3,36 +3,21 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "video-ligtning-detector",
-	Short: "",
-	Long:  "",
-	RunE:  run,
-}
-
 var (
-	InputVideoPath      string
-	OutputDirectoryPath string
-	LogLevel            options.LogLevel
-	DetectorOptions     options.DetectorOptions = options.GetDefaultDetectorOptions()
+	LogLevel        options.LogLevel
+	DetectorOptions options.DetectorOptions = options.GetDefaultDetectorOptions()
 )
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-
-	rootCmd.PersistentFlags().StringVarP(&InputVideoPath, "input-video-path", "i", "", "Input video to perform the lightning detection.")
-	rootCmd.MarkPersistentFlagRequired("input-video-path")
-
-	rootCmd.PersistentFlags().StringVarP(&OutputDirectoryPath, "output-directory-path", "o", "", "Output directory to store detected frames.")
-	rootCmd.MarkPersistentFlagRequired("output-directory-path")
 
 	rootCmd.PersistentFlags().VarP(&LogLevel, "log-level", "l", "The verbosity of the log messages printed to the standard output.")
 
@@ -40,66 +25,67 @@ func init() {
 		&DetectorOptions.AutoThresholds,
 		"auto-thresholds", "a",
 		DetectorOptions.AutoThresholds,
-		"Automatically select thresholds for all parameters based on calculated frame values. Values that are explicitly provided will not be overwritten.")
+		"Automatic determination of thresholds after video analysis. The specified thresholds will overwrite those determined.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.ColorDifferenceDetectionThreshold,
 		"color-difference-threshold", "c",
 		DetectorOptions.ColorDifferenceDetectionThreshold,
-		"The threshold used to determine the difference between two neighbouring frames on the color basis. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average.")
+		"The threshold used to determine the difference between two neighbouring frames on the color basis. See the documentation for more information on detection threshold values.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
 		"binary-threshold-difference-threshold", "t",
 		DetectorOptions.BinaryThresholdDifferenceDetectionThreshold,
-		"The threshold used to determine the difference between two neighbouring frames after the binary thresholding process. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average")
+		"The threshold used to determine the difference between two neighbouring frames after the binary thresholding segmentation process. See the documentation for more information on detection threshold values.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.BrightnessDetectionThreshold,
 		"brightness-threshold", "b",
 		DetectorOptions.BrightnessDetectionThreshold,
-		"The threshold used to determine the brightness of the frame. Detection is credited when the value for a given frame is greater than the sum of the threshold of tripping and the moving average")
+		"The threshold used to determine the brightness of the frame. See the documentation for more information on detection threshold values.")
 
 	rootCmd.PersistentFlags().Int32VarP(
 		&DetectorOptions.MovingMeanResolution,
 		"moving-mean-resolution", "m",
 		DetectorOptions.MovingMeanResolution,
-		"The number of elements of the subset on which the moving mean will be calculated, for each parameter.")
+		"Resolution of the moving mean used when determining the statistics of the analysed frames. Has a direct impact on the accuracy of detection.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.SkipFramesExport,
 		"skip-frames-export", "f",
 		DetectorOptions.SkipFramesExport,
-		"Value indicating if the detected frames should not be exported.")
+		"Skipping the step in which positively classified frames are exported to image files.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.ExportCsvReport,
 		"export-csv-report", "e",
 		DetectorOptions.ExportCsvReport,
-		"Value indicating if the frames statistics report in CSV format should be exported.")
+		"Export of reports in CSV format.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.ExportJsonReport,
 		"export-json-report", "j",
 		DetectorOptions.ExportJsonReport,
-		"Value indicating if the frames statistics report in JSON format should be exported.")
+		"Export of reports in JSON format.")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.ExportChartReport,
 		"export-chart-report", "r",
 		DetectorOptions.ExportChartReport,
-		"Value indicating if the frames statistics chart in HTML format should be exported.")
+		"Export of frame statistics as a chart in HTML format.")
 
 	rootCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.FrameScalingFactor,
 		"scaling-factor", "s",
 		DetectorOptions.FrameScalingFactor,
-		"The frame scaling factor used to downscale frames for better performance.")
+		"Scaling factor for the frame size of the recording. Has a direct impact on the performance, quality and processing time of recordings.")
 
+	denoiseValues := strings.Join(options.GetDenoiseAlgorithmValues(), ", ")
 	rootCmd.PersistentFlags().VarP(
 		&DetectorOptions.Denoise,
 		"denoise", "n",
-		"Apply de-noising to the frames. This may have a positivie effect on the frames statistics precision.")
+		fmt.Sprintf("The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ %s ]", denoiseValues))
 
 	rootCmd.PersistentFlags().BoolVar(
 		&DetectorOptions.ExportConfusionMatrix,
@@ -117,55 +103,54 @@ func init() {
 		&DetectorOptions.ImportPreanalyzed,
 		"import-preanalyzed", "p",
 		DetectorOptions.ImportPreanalyzed,
-		"Value indicating the the the pre-analyzed frames should be imported from the previously exported JSON report.")
+		"Use the cached data associated with the video analysis or save it in case the video has not already been analysed.")
 
 	rootCmd.PersistentFlags().BoolVar(
 		&DetectorOptions.StrictExplicitThreshold,
 		"strict-explicit-threshold",
 		DetectorOptions.StrictExplicitThreshold,
-		"Value indicating if explicit thresholds range should be validated.")
+		"Omit strict validation of detection threshold ranges.")
 
 	rootCmd.PersistentFlags().StringVar(
 		&DetectorOptions.DetectionBoundsExpression,
 		"detection-bounds-expression",
 		DetectorOptions.DetectionBoundsExpression,
-		"Expression indicating the top left point of a detection bounding box and its dimensions. Example: 0:0:100:200")
+		"An expression indicating consecutively the coordinates of the upper left point, width and height of the cutout (bounding box) of the recording to be processed.  Example: 0:0:100:200")
 
+	scalingValues := strings.Join(options.GetScaleAlgorithmValues(), ", ")
 	rootCmd.PersistentFlags().Var(
 		&DetectorOptions.ScaleAlgorithm,
 		"scaling-algorithm",
-		"Interpolation sampling algorithm that will be used for the scaling.")
+		fmt.Sprintf("Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ %s ]", scalingValues))
 }
 
 func Execute(args []string) {
-	rootCmd.SetArgs(args)
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
-func run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stdout, "Unexpected failure: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 
-	printer.Configure(printer.PrinterConfig{
-		UseColor:  true,
-		LogLevel:  LogLevel,
-		OutStream: os.Stdout,
-	})
-
-	detectorInstance, err := detector.CreateDetector(printer.Instance(), DetectorOptions)
-	if err != nil {
-		return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
+	rootCmd.SetArgs(args)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stdout, "Failure: %s\n", err)
+		os.Exit(1)
 	}
 
-	if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath); err != nil {
-		return fmt.Errorf("cmd: detector run failed: %w", err)
-	}
+	os.Exit(0)
+}
 
-	return nil
+var rootCmd = &cobra.Command{
+	Use:  "vld",
+	Long: "A video analysis tool that allows to detect and export frames that have captured lightning strikes.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		printer.Configure(printer.PrinterConfig{
+			UseColor:  true,
+			LogLevel:  LogLevel,
+			OutStream: os.Stdout,
+		})
+
+		return nil
+	},
 }
