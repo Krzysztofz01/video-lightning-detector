@@ -46,3 +46,11 @@ tasks:
        - go version
        - ffmpeg -hide_banner -version | head -n 1
        - ffprobe -hide_banner -version | head -n 1
+
+  todo:
+    desc: Prints the TODOs and FIXMEs in the project source code.
+    vars:
+      EXCLUDE: --exclude-dir=bin --exclude-dir=.git --exclude-dir=.vscode --exclude=Taskfile.yml
+    cmds:
+      - cmd: grep -rEnI --color=always {{.EXCLUDE}} 'TODO|FIXME' . | sed -E 's/(\s+|\/\/)+/ /'
+        platforms: [ linux ]
