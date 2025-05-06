@@ -159,8 +159,8 @@ func (at *autoThreshold) CalculateAboveMeanOfDeviations() (thresholdSet, error) 
 
 func NewAutoThreshold(fc frame.FrameCollection, ds statistics.DescriptiveStatistics, p printer.Printer) AutoThreshold {
 	return &autoThreshold{
-		Frames:     nil,
-		Statistics: statistics.DescriptiveStatistics{},
+		Frames:     fc,
+		Statistics: ds,
 		Printer:    p,
 	}
 }
