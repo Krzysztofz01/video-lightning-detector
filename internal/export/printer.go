@@ -9,7 +9,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 )
 
-func PrintDescriptiveStatistics(p printer.Printer, ds statistics.DescriptiveStatistics, l options.LogLevel) error {
+func tableDescriptiveStatistics(p printer.Printer, ds statistics.DescriptiveStatistics, l options.LogLevel) error {
 	if !p.IsLogLevel(l) {
 		return nil
 	}
@@ -29,7 +29,7 @@ func PrintDescriptiveStatistics(p printer.Printer, ds statistics.DescriptiveStat
 	return nil
 }
 
-func PrintConfusionMatrix(p printer.Printer, cm statistics.ConfusionMatrix, l options.LogLevel) error {
+func tableConfusionMatrix(p printer.Printer, cm statistics.ConfusionMatrix, l options.LogLevel) error {
 	if !p.IsLogLevel(l) {
 		return nil
 	}

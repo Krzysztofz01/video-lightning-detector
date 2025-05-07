@@ -11,7 +11,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-func ExportCsvFrames(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
+func exportCsvFrames(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
 	csvFramesReportPath := path.Join(outputDirectoryPath, CsvFramesReportFilename)
 	framesReportFile, err := utils.CreateFileWithTree(csvFramesReportPath)
 	if err != nil {
@@ -52,7 +52,7 @@ func ExportCsvFrames(outputDirectoryPath string, fc frame.FrameCollection) (stri
 	return csvFramesReportPath, nil
 }
 
-func ExportCsvDescriptiveStatistics(outputDirectoryPath string, ds statistics.DescriptiveStatistics) (string, error) {
+func exportCsvDescriptiveStatistics(outputDirectoryPath string, ds statistics.DescriptiveStatistics) (string, error) {
 	csvDescriptiveStatisticsReportPath := path.Join(outputDirectoryPath, CsvDescriptiveStatisticsReportFilename)
 	statisticsReportFile, err := utils.CreateFileWithTree(csvDescriptiveStatisticsReportPath)
 	if err != nil {
@@ -103,7 +103,7 @@ func ExportCsvDescriptiveStatistics(outputDirectoryPath string, ds statistics.De
 	return csvDescriptiveStatisticsReportPath, nil
 }
 
-func ExportCsvConfusionMatrix(outputDirectoryPath string, cm statistics.ConfusionMatrix) (string, error) {
+func exportCsvConfusionMatrix(outputDirectoryPath string, cm statistics.ConfusionMatrix) (string, error) {
 	csvConfusionMatrixReportPath := path.Join(outputDirectoryPath, CsvConfusionMatrixReportFilename)
 	confusionMatrixReportFile, err := utils.CreateFileWithTree(csvConfusionMatrixReportPath)
 	if err != nil {

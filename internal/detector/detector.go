@@ -3,10 +3,6 @@ package detector
 import (
 	"errors"
 	"fmt"
-	"image"
-	"io"
-	"path"
-	"slices"
 	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/analyzer"
@@ -15,8 +11,6 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
-	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
-	"github.com/Krzysztofz01/video-lightning-detector/internal/video"
 )
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
@@ -76,7 +70,8 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error 
 		return fmt.Errorf("detector: video detection stage failed: %w", err)
 	}
 
-	if err := detector.PerformExports(inputVideoPath, outputDirectoryPath, frames, descriptiveStatistics, detections); err != nil {
+	exporter := export.NewExporter(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
+	if err := exporter.Export(frames, descriptiveStatistics, detections); err != nil {
 		return fmt.Errorf("detector: export stage failed: %w", err)
 	}
 
@@ -115,116 +110,6 @@ func (detector *detector) PerformVideoDetection(framesCollection frame.FrameColl
 	return detectionBuffer.ResolveIndexes(), nil
 }
 
-// Helper function used to perform exports to varius formats selected via the options
-func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath string, fc frame.FrameCollection, ds statistics.DescriptiveStatistics, detections []int) error {
-	exportTime := time.Now()
-
-	if err := export.PrintDescriptiveStatistics(detector.printer, ds, options.Verbose); err != nil {
-		return fmt.Errorf("detector: failed to export descriptive statistics: %w", err)
-	}
-
-	if !detector.options.SkipFramesExport {
-		if err := detector.PerformFrameImagesExport(inputVideoPath, outputDirectoryPath, detections); err != nil {
-			return fmt.Errorf("detector: failed to perform the detected frames images export: %w", err)
-		}
-	}
-
-	var confusionMatrix statistics.ConfusionMatrix
-	if detector.options.ExportConfusionMatrix {
-		actualClassification, err := utils.ParseRangeExpression(detector.options.ConfusionMatrixActualDetectionsExpression)
-		if err != nil {
-			return fmt.Errorf("detector: failed to parse the confusion matrix actual detections range expression: %w", err)
-		}
-
-		detector.printer.Debug("Frames used as actual detection classification: %v", actualClassification)
-
-		confusionMatrix = statistics.CreateConfusionMatrix(actualClassification, detections, fc.Count())
-
-		if err := export.PrintConfusionMatrix(detector.printer, confusionMatrix, options.Verbose); err != nil {
-			return fmt.Errorf("detector: failed to export the confusion matrix: %w", err)
-		}
-	}
-
-	if detector.options.ExportCsvReport {
-		csvProgressFinalize := detector.printer.Progress("Exporting reports in CSV format")
-		defer csvProgressFinalize()
-
-		if path, err := export.ExportCsvFrames(outputDirectoryPath, fc); err != nil {
-			return fmt.Errorf("detector: failed to export csv frames report: %w", err)
-		} else {
-			detector.printer.Info("Frames report in CSV format exported to: %s", path)
-		}
-
-		if path, err := export.ExportCsvDescriptiveStatistics(outputDirectoryPath, ds); err != nil {
-			return fmt.Errorf("detector: failed to export csv descriptive statistics report: %w", err)
-		} else {
-			detector.printer.Info("Descriptive statistics in CSV format exported to %s", path)
-		}
-
-		if detector.options.ExportConfusionMatrix {
-			if path, err := export.ExportCsvConfusionMatrix(outputDirectoryPath, confusionMatrix); err != nil {
-				return fmt.Errorf("detector: failed to export csv confusion matrix report: %w", err)
-			} else {
-				detector.printer.Info("Confusion matrix in CSV format exported to %s", path)
-			}
-		}
-
-		csvProgressFinalize()
-	}
-
-	if detector.options.ExportJsonReport {
-		jsonProgressFinalize := detector.printer.Progress("Exporting reports in JSON format")
-		defer jsonProgressFinalize()
-
-		if path, err := export.ExportJsonFrames(outputDirectoryPath, fc); err != nil {
-			return fmt.Errorf("detector: failed to export json frames report: %w", err)
-		} else {
-			detector.printer.Info("Frames report in JSON format exported to: %s", path)
-		}
-
-		if path, err := export.ExportJsonDescriptiveStatistics(outputDirectoryPath, ds); err != nil {
-			return fmt.Errorf("detector: failed to export json descriptive statistics report: %w", err)
-		} else {
-			detector.printer.Info("Descriptive statistics in JSON format exported to %s", path)
-		}
-
-		if detector.options.ExportConfusionMatrix {
-			if path, err := export.ExportJsonConfusionMatrix(outputDirectoryPath, confusionMatrix); err != nil {
-				return fmt.Errorf("detector: failed to export json confusion matrix report: %w", err)
-			} else {
-				detector.printer.Info("Confusion matrix in JSON format exported to %s", path)
-			}
-		}
-
-		jsonProgressFinalize()
-	}
-
-	if detector.options.ExportChartReport {
-		chartProgressFinalize := detector.printer.Progress("Exporting chart report")
-		defer chartProgressFinalize()
-
-		path, err := export.ExportFramesChart(
-			outputDirectoryPath,
-			fc,
-			ds,
-			detections,
-			detector.options.BrightnessDetectionThreshold,
-			detector.options.ColorDifferenceDetectionThreshold,
-			detector.options.BinaryThresholdDifferenceDetectionThreshold)
-
-		if err != nil {
-			return fmt.Errorf("detector: failed to export the frames chart: %w", err)
-		} else {
-			detector.printer.Info("Frames chart exported to: %s", path)
-		}
-
-		chartProgressFinalize()
-	}
-
-	detector.printer.Info("Export finished. Stage took: %s", time.Since(exportTime))
-	return nil
-}
-
 // NOTE: Experimental sampling of binary threshold from recording
 // func (detector *detector) SampleBinaryThreshold(inputVideoPath string) (float64, error) {
 // 	video, err := vidio.NewVideo(inputVideoPath)
@@ -260,53 +145,3 @@ func (detector *detector) PerformExports(inputVideoPath, outputDirectoryPath str
 
 // 	return thresholdSum / float64(sampleCount), nil
 // }
-
-// Helper function used to export frame images which meet the requirement thresholds to png files.
-func (detector *detector) PerformFrameImagesExport(inputVideoPath, outputDirectoryPath string, detections []int) error {
-	framesExportTime := time.Now()
-	detector.printer.Debug("Starting the frames export stage.")
-	detector.printer.Info("About to export %d frames.", len(detections))
-
-	slices.Sort(detections)
-
-	video, err := video.NewVideo(inputVideoPath)
-	if err != nil {
-		return fmt.Errorf("detector: failed to open the video file for the frame export stage: %w", err)
-	}
-
-	defer video.Close()
-
-	targetWidth, targetHeight := video.GetOutputDimensions()
-
-	frame := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-	if err := video.SetFrameBuffer(frame.Pix); err != nil {
-		return fmt.Errorf("detector: failed to apply the given buffer as the video frame buffer: %w", err)
-	}
-
-	if err := video.SetTargetFrames(detections...); err != nil {
-		return fmt.Errorf("detector: failed to set the detection frames as the video target frames: %w", err)
-	}
-
-	progressStep, progressFinalize := detector.printer.ProgressSteps("Video frames export stage.", len(detections))
-
-	for _, frameIndex := range detections {
-		if err := video.Read(); err == io.EOF {
-			break
-		} else if err != nil {
-			return fmt.Errorf("detector: failed to read the video export frame: %w", err)
-		}
-
-		frameImageName := fmt.Sprintf("frame-%d.png", frameIndex+1)
-		frameImagePath := path.Join(outputDirectoryPath, frameImageName)
-		if err := utils.ExportImageAsPng(frameImagePath, frame); err != nil {
-			return fmt.Errorf("detector: failed to export the frame image: %w", err)
-		}
-
-		progressStep()
-		detector.printer.Info("Frame: [%d/%d]. Frame image exported at: %s", frameIndex+1, video.Frames(), frameImagePath)
-	}
-
-	progressFinalize()
-	detector.printer.Debug("Frames export stage finished. Stage took: %s", time.Since(framesExportTime))
-	return nil
-}

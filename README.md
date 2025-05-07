@@ -79,7 +79,7 @@ Flags:
   -t, --binary-threshold-difference-threshold float            The threshold used to determine the difference between two neighbouring frames after the binary thresholding segmentation process. See the documentation for more information on detection threshold values.
   -b, --brightness-threshold float                             The threshold used to determine the brightness of the frame. See the documentation for more information on detection threshold values.
   -c, --color-difference-threshold float                       The threshold used to determine the difference between two neighbouring frames on the color basis. See the documentation for more information on detection threshold values.
-      --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14
+      --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification (1-based indexing). Example: 4,5,8-10,12,14
   -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ none, stackblur8, stackblur16, stackblur32 ] (default none)
       --detection-bounds-expression string                     An expression indicating consecutively the coordinates of the upper left point, width and height of the cutout (bounding box) of the recording to be processed.  Example: 0:0:100:200
   -r, --export-chart-report                                    Export of frame statistics as a chart in HTML format.

@@ -11,7 +11,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-func ExportJsonFrames(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
+func exportJsonFrames(outputDirectoryPath string, fc frame.FrameCollection) (string, error) {
 	jsonFramesReportPath := path.Join(outputDirectoryPath, JsonFramesReportFilename)
 	framesReportFile, err := utils.CreateFileWithTree(jsonFramesReportPath)
 	if err != nil {
@@ -35,7 +35,7 @@ func ExportJsonFrames(outputDirectoryPath string, fc frame.FrameCollection) (str
 	return jsonFramesReportPath, nil
 }
 
-func ExportJsonDescriptiveStatistics(outputDirectoryPath string, ds statistics.DescriptiveStatistics) (string, error) {
+func exportJsonDescriptiveStatistics(outputDirectoryPath string, ds statistics.DescriptiveStatistics) (string, error) {
 	jsonDescriptiveStatisticsReportPath := path.Join(outputDirectoryPath, JsonDescriptiveStatisticsReportFilename)
 	statisticsReportFile, err := utils.CreateFileWithTree(jsonDescriptiveStatisticsReportPath)
 	if err != nil {
@@ -57,7 +57,7 @@ func ExportJsonDescriptiveStatistics(outputDirectoryPath string, ds statistics.D
 	return jsonDescriptiveStatisticsReportPath, nil
 }
 
-func ExportJsonConfusionMatrix(outputDirectoryPath string, cm statistics.ConfusionMatrix) (string, error) {
+func exportJsonConfusionMatrix(outputDirectoryPath string, cm statistics.ConfusionMatrix) (string, error) {
 	jsonConfusionMatrixReportPath := path.Join(outputDirectoryPath, JsonConfusionMatrixReportFilename)
 	confusionMatrixReportFile, err := utils.CreateFileWithTree(jsonConfusionMatrixReportPath)
 	if err != nil {

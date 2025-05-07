@@ -21,7 +21,7 @@ type ChartData struct {
 	BinaryThresholdDifferenceDetectionThreshold float64
 }
 
-func ExportFramesChart(outputDirectoryPath string, fc frame.FrameCollection, ds statistics.DescriptiveStatistics, det []int, brightnessT float64, colorDiffT float64, btDiffT float64) (string, error) {
+func exportFramesChart(outputDirectoryPath string, fc frame.FrameCollection, ds statistics.DescriptiveStatistics, det []int, brightnessT float64, colorDiffT float64, btDiffT float64) (string, error) {
 	framesChartPath := path.Join(outputDirectoryPath, FramesChartFilename)
 	framesChartFile, err := utils.CreateFileWithTree(framesChartPath)
 	if err != nil {
