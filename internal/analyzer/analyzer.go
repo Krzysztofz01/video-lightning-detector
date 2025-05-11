@@ -110,7 +110,7 @@ func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error)
 
 	frameNumber := 1
 	frameCount := video.Frames()
-	frames := frame.CreateNewFrameCollection(frameCount)
+	frames := frame.NewFrameCollection(frameCount)
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
@@ -128,7 +128,9 @@ func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error)
 		}
 
 		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber, frame.BinaryThresholdParam)
-		frames.Append(frame)
+		if err := frames.Push(frame); err != nil {
+			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
+		}
 
 		analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %f ColorDiff: %f BTDiff: %f", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference)
 
@@ -208,14 +210,12 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 			return fmt.Errorf("analyzer: failed to open the frame collection cache with preanalyzed frames: %w", err)
 		}
 
-		// FIXME: This can be optimized via checksum peeking insted of full cache parsing
-		var importedChecksum string
-		if _, importedChecksum, err = frame.ImportCachedFrameCollection(frameCollectionCacheFile); err != nil {
-			return fmt.Errorf("analyzer: failed to access the cached frame collection: %w", err)
-		}
-
-		if optionsChecksum == importedChecksum {
-			return nil
+		if equal, err := frame.ChecksumEqualPeek(frameCollectionCacheFile, optionsChecksum); err != nil {
+			return fmt.Errorf("analyzer: failed to peek and compare preanalzyed frames checksum: %w", err)
+		} else {
+			if equal {
+				return nil
+			}
 		}
 	}
 
@@ -224,7 +224,7 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 		return fmt.Errorf("analyzer: failed to creatae the frame collection cache with preanalyzed frames: %w", err)
 	}
 
-	if err := fc.ExportCache(frameCollectionCacheFile, optionsChecksum); err != nil {
+	if err := frame.ExportCachedFrameCollection(frameCollectionCacheFile, fc, optionsChecksum); err != nil {
 		return fmt.Errorf("analyzer: failed to export the preanalyzed frames cache: %w", err)
 	}
 
