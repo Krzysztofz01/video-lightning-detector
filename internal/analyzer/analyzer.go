@@ -110,7 +110,7 @@ func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error)
 
 	frameNumber := 1
 	frameCount := video.Frames()
-	frames := frame.CreateNewFrameCollection(frameCount)
+	frames := frame.NewFrameCollection(frameCount)
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
@@ -128,7 +128,9 @@ func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error)
 		}
 
 		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber, frame.BinaryThresholdParam)
-		frames.Append(frame)
+		if err := frames.Push(frame); err != nil {
+			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
+		}
 
 		analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %f ColorDiff: %f BTDiff: %f", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference)
 
@@ -167,16 +169,21 @@ func (analyzer *analyzer) ImportPreanalyzedFrames() (frame.FrameCollection, bool
 		return nil, true, fmt.Errorf("analyzer: failed to access the detector options checksum: %w", err)
 	}
 
-	frames, checksum, err := frame.ImportCachedFrameCollection(frameCollectionCacheFile)
-	if err != nil {
-		return nil, true, fmt.Errorf("analyzer: failed to import the json frames report with preanalyzed frames: %w", err)
-	}
-
-	if optionsChecksum != checksum {
+	if equal, err := frame.ChecksumEqualPeek(frameCollectionCacheFile, optionsChecksum); err != nil {
+		return nil, false, fmt.Errorf("analyzer: failed to peek and compare preanalzyed frames checksum: %w", err)
+	} else if !equal {
 		return nil, false, nil
 	}
 
-	return frames, true, nil
+	if _, err := frameCollectionCacheFile.Seek(0, io.SeekStart); err != nil {
+		return nil, false, fmt.Errorf("analyzer: failed to reset the frame collection cache file reading offset: %w", err)
+	}
+
+	if frames, _, err := frame.ImportCachedFrameCollection(frameCollectionCacheFile); err != nil {
+		return nil, true, fmt.Errorf("analyzer: failed to import the json frames report with preanalyzed frames: %w", err)
+	} else {
+		return frames, true, nil
+	}
 }
 
 func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) error {
@@ -208,14 +215,12 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 			return fmt.Errorf("analyzer: failed to open the frame collection cache with preanalyzed frames: %w", err)
 		}
 
-		// FIXME: This can be optimized via checksum peeking insted of full cache parsing
-		var importedChecksum string
-		if _, importedChecksum, err = frame.ImportCachedFrameCollection(frameCollectionCacheFile); err != nil {
-			return fmt.Errorf("analyzer: failed to access the cached frame collection: %w", err)
-		}
-
-		if optionsChecksum == importedChecksum {
-			return nil
+		if equal, err := frame.ChecksumEqualPeek(frameCollectionCacheFile, optionsChecksum); err != nil {
+			return fmt.Errorf("analyzer: failed to peek and compare preanalzyed frames checksum: %w", err)
+		} else {
+			if equal {
+				return nil
+			}
 		}
 	}
 
@@ -224,7 +229,7 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 		return fmt.Errorf("analyzer: failed to creatae the frame collection cache with preanalyzed frames: %w", err)
 	}
 
-	if err := fc.ExportCache(frameCollectionCacheFile, optionsChecksum); err != nil {
+	if err := frame.ExportCachedFrameCollection(frameCollectionCacheFile, fc, optionsChecksum); err != nil {
 		return fmt.Errorf("analyzer: failed to export the preanalyzed frames cache: %w", err)
 	}
 

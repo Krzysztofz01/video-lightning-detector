@@ -8,59 +8,76 @@ import (
 )
 
 func TestFramesCollectionShouldCreate(t *testing.T) {
-	collection := CreateNewFrameCollection(5)
-
+	collection := NewFrameCollection(5)
 	assert.NotNil(t, collection)
+
+	assert.Panics(t, func() {
+		NewFrameCollection(-1)
+	})
+
+	assert.Panics(t, func() {
+		NewFrameCollection(0)
+	})
 }
 
-func TestFramesCollectionShouldAppendFrame(t *testing.T) {
+func TestFramesCollectionShouldPushValidFrames(t *testing.T) {
+	frames := []*Frame{
+		CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam),
+		CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam),
+		CreateNewFrame(mockImage(color.White), mockImage(color.White), 3, BinaryThresholdParam),
+		CreateNewFrame(mockImage(color.White), mockImage(color.White), 4, BinaryThresholdParam),
+		CreateNewFrame(mockImage(color.White), mockImage(color.White), 5, BinaryThresholdParam),
+	}
+
+	collection := NewFrameCollection(len(frames))
+
+	for _, frame := range frames {
+		err := collection.Push(frame)
+		assert.Nil(t, err)
+	}
+}
+
+func TestFramesCollectionShouldNotPushInvalidFrame(t *testing.T) {
+	collection := NewFrameCollection(1)
+
+	// NOTE: nil frame
+	err := collection.Push(nil)
+	assert.NotNil(t, err)
+
+	// NOTE: frame with invalid ordinal number
+	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
+	err = collection.Push(frame)
+	assert.NotNil(t, err)
+
+	frame = CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam)
+	err = collection.Push(frame)
+	assert.Nil(t, err)
+
+	// NOTE: frame out of capacity range
+	frame = CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
+	err = collection.Push(frame)
+	assert.NotNil(t, err)
+}
+
+func TestFramesCollectionShouldCorrectlyHandleAccessBasedOnLength(t *testing.T) {
+	collection := NewFrameCollection(1)
+
+	assert.Panics(t, func() {
+		collection.Count()
+	})
+
+	assert.Panics(t, func() {
+		collection.GetAll()
+	})
+
 	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam)
-	collection := CreateNewFrameCollection(5)
-
-	err := collection.Append(frame)
-
-	assert.Nil(t, err)
-}
-
-func TestFramesCollectionShouldNotAppendNilFrame(t *testing.T) {
-	collection := CreateNewFrameCollection(5)
-
-	err := collection.Append(nil)
-
-	assert.NotNil(t, err)
-}
-
-func TestFramesCollectionShouldNotAppendFrameWithSameOrdinalNumber(t *testing.T) {
-	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
-	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.Black), 2, BinaryThresholdParam)
-	collection := CreateNewFrameCollection(5)
-
-	err := collection.Append(frame1)
+	err := collection.Push(frame)
 	assert.Nil(t, err)
 
-	err = collection.Append(frame2)
-	assert.NotNil(t, err)
-}
+	frames := collection.GetAll()
+	assert.NotNil(t, frames)
+	assert.Len(t, frames, 1)
 
-func TestFramesCollectionShouldGetFrame(t *testing.T) {
-	frameNumber := 2
-	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), frameNumber, BinaryThresholdParam)
-	collection := CreateNewFrameCollection(5)
-
-	err := collection.Append(frame)
-	assert.Nil(t, err)
-
-	actualFrame, err := collection.Get(frameNumber)
-	assert.Nil(t, err)
-	assert.NotNil(t, actualFrame)
-
-	assert.Equal(t, frame, actualFrame)
-}
-
-func TestFramesCollectionShouldNotGetNotExistingFrame(t *testing.T) {
-	collection := CreateNewFrameCollection(5)
-
-	frame, err := collection.Get(3)
-	assert.NotNil(t, err)
-	assert.Nil(t, frame)
+	count := collection.Count()
+	assert.Equal(t, 1, count)
 }
