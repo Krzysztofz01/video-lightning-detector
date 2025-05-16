@@ -169,16 +169,21 @@ func (analyzer *analyzer) ImportPreanalyzedFrames() (frame.FrameCollection, bool
 		return nil, true, fmt.Errorf("analyzer: failed to access the detector options checksum: %w", err)
 	}
 
-	frames, checksum, err := frame.ImportCachedFrameCollection(frameCollectionCacheFile)
-	if err != nil {
-		return nil, true, fmt.Errorf("analyzer: failed to import the json frames report with preanalyzed frames: %w", err)
-	}
-
-	if optionsChecksum != checksum {
+	if equal, err := frame.ChecksumEqualPeek(frameCollectionCacheFile, optionsChecksum); err != nil {
+		return nil, false, fmt.Errorf("analyzer: failed to peek and compare preanalzyed frames checksum: %w", err)
+	} else if !equal {
 		return nil, false, nil
 	}
 
-	return frames, true, nil
+	if _, err := frameCollectionCacheFile.Seek(0, io.SeekStart); err != nil {
+		return nil, false, fmt.Errorf("analyzer: failed to reset the frame collection cache file reading offset: %w", err)
+	}
+
+	if frames, _, err := frame.ImportCachedFrameCollection(frameCollectionCacheFile); err != nil {
+		return nil, true, fmt.Errorf("analyzer: failed to import the json frames report with preanalyzed frames: %w", err)
+	} else {
+		return frames, true, nil
+	}
 }
 
 func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) error {
