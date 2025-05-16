@@ -80,6 +80,12 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 			}
 		}
 
+		if path, err := exportCsvDetectionThresholds(exporter.OutputDirPath, exporter.Options); err != nil {
+			return fmt.Errorf("export: failed to export csv detection thresholds report: %w", err)
+		} else {
+			exporter.Printer.Info("Detections thresholds in CSV format exported to %s", path)
+		}
+
 		csvProgressFinalize()
 	}
 
@@ -105,6 +111,12 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 			} else {
 				exporter.Printer.Info("Confusion matrix in JSON format exported to %s", path)
 			}
+		}
+
+		if path, err := exportJsonDetectionThresholds(exporter.OutputDirPath, exporter.Options); err != nil {
+			return fmt.Errorf("export: failed to export json detection thresholds report: %w", err)
+		} else {
+			exporter.Printer.Info("Detection thresholds in JSON format exported to %s", path)
 		}
 
 		jsonProgressFinalize()

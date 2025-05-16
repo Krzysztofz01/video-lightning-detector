@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
@@ -141,6 +142,32 @@ func exportCsvConfusionMatrix(outputDirectoryPath string, cm statistics.Confusio
 	}
 
 	return csvConfusionMatrixReportPath, nil
+}
+
+func exportCsvDetectionThresholds(outputDirectoryPath string, opt options.DetectorOptions) (string, error) {
+	csvDetectionThresholdsReportPath := path.Join(outputDirectoryPath, CsvDetectionThresholdReportFilename)
+	csvDetectionThresholdsReportFile, err := utils.CreateFileWithTree(csvDetectionThresholdsReportPath)
+	if err != nil {
+		return "", fmt.Errorf("export: failed to create the csv detection thresholds report file: %w", err)
+	}
+
+	defer csvDetectionThresholdsReportFile.Close()
+
+	writer := csv.NewWriter(csvDetectionThresholdsReportFile)
+
+	defer writer.Flush()
+
+	rows := [][]string{
+		{"Brightness", strconv.FormatFloat(opt.BrightnessDetectionThreshold, 'f', -1, 64)},
+		{"ColorDifference", strconv.FormatFloat(opt.ColorDifferenceDetectionThreshold, 'f', -1, 64)},
+		{"BinaryThresholdDifference", strconv.FormatFloat(opt.BinaryThresholdDifferenceDetectionThreshold, 'f', -1, 64)},
+	}
+
+	if err := writer.WriteAll(rows); err != nil {
+		return "", fmt.Errorf("export: failed to write the detection thresholds rows to the csv file: %w", err)
+	}
+
+	return csvDetectionThresholdsReportPath, nil
 }
 
 func valuesToCsvRow(leftPadding int, values ...float64) []string {

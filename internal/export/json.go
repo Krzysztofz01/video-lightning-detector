@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
@@ -77,6 +78,34 @@ func exportJsonConfusionMatrix(outputDirectoryPath string, cm statistics.Confusi
 	}
 
 	return jsonConfusionMatrixReportPath, nil
+}
+
+func exportJsonDetectionThresholds(outputDirectoryPath string, opt options.DetectorOptions) (string, error) {
+	jsonDetectionThresholdsReportPath := path.Join(outputDirectoryPath, JsonDetectionThresholdReportFilename)
+	jsonDetectionThresholdsReportFile, err := utils.CreateFileWithTree(jsonDetectionThresholdsReportPath)
+	if err != nil {
+		return "", fmt.Errorf("export: failed to create the json detection thresholds report file: %w", err)
+	}
+
+	defer jsonDetectionThresholdsReportFile.Close()
+
+	encoder := createEncoder(jsonDetectionThresholdsReportFile)
+
+	thresholds := struct {
+		Brightness                float64 `json:"brightness"`
+		ColorDifference           float64 `json:"color-difference"`
+		BinaryThresholdDifference float64 `json:"binary-threshold-difference"`
+	}{
+		Brightness:                opt.BrightnessDetectionThreshold,
+		ColorDifference:           opt.ColorDifferenceDetectionThreshold,
+		BinaryThresholdDifference: opt.BinaryThresholdDifferenceDetectionThreshold,
+	}
+
+	if err := encoder.Encode(thresholds); err != nil {
+		return "", fmt.Errorf("export: failed to encode the detection thresholds: %w", err)
+	}
+
+	return jsonDetectionThresholdsReportPath, nil
 }
 
 func createEncoder(file *os.File) *json.Encoder {
