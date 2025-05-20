@@ -144,13 +144,11 @@ func Execute(args []string) {
 var rootCmd = &cobra.Command{
 	Use:  "vld",
 	Long: "A video analysis tool that allows to detect and export frames that have captured lightning strikes.",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		printer.Configure(printer.PrinterConfig{
 			UseColor:  true,
 			LogLevel:  LogLevel,
 			OutStream: os.Stdout,
 		})
-
-		return nil
 	},
 }
