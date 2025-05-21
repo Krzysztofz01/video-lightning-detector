@@ -20,20 +20,39 @@ func TestFramesCollectionShouldCreate(t *testing.T) {
 	})
 }
 
-func TestFramesCollectionShouldPushValidFrames(t *testing.T) {
-	frames := []*Frame{
-		CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam),
-		CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam),
-		CreateNewFrame(mockImage(color.White), mockImage(color.White), 3, BinaryThresholdParam),
-		CreateNewFrame(mockImage(color.White), mockImage(color.White), 4, BinaryThresholdParam),
-		CreateNewFrame(mockImage(color.White), mockImage(color.White), 5, BinaryThresholdParam),
+func TestFramesCollectionShouldPushValidFramesAndAccessIn(t *testing.T) {
+	cases := []struct {
+		Capacity int
+		Count    int
+	}{
+		{1, 0},
+		{1, 1},
+		{1, 2},
+		{5, 4},
+		{5, 5},
+		{5, 10},
 	}
 
-	collection := NewFrameCollection(len(frames))
+	for _, c := range cases {
+		frames := make([]*Frame, 0, c.Count)
+		collection := NewFrameCollection(c.Capacity)
 
-	for _, frame := range frames {
-		err := collection.Push(frame)
-		assert.Nil(t, err)
+		for index := 0; index < c.Count; index += 1 {
+			frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), index+1, BinaryThresholdParam)
+			err := collection.Push(frame)
+			assert.Nil(t, err)
+
+			frames = append(frames, frame)
+		}
+
+		collection.Lock()
+
+		assert.Equal(t, collection.Count(), c.Count)
+		a := collection.GetAll()
+		assert.Equal(t, a, frames)
+		for _, frame := range collection.GetAll() {
+			assert.NotNil(t, frame)
+		}
 	}
 }
 
@@ -53,13 +72,20 @@ func TestFramesCollectionShouldNotPushInvalidFrame(t *testing.T) {
 	err = collection.Push(frame)
 	assert.Nil(t, err)
 
-	// NOTE: frame out of capacity range
+	// NOTE: access before lock
+	assert.Panics(t, func() {
+		collection.Count()
+	})
+
+	collection.Lock()
+
+	// NOTE: push after lock
 	frame = CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
 	err = collection.Push(frame)
 	assert.NotNil(t, err)
 }
 
-func TestFramesCollectionShouldCorrectlyHandleAccessBasedOnLength(t *testing.T) {
+func TestFramesCollectionShouldCorrectlyHandleAccess(t *testing.T) {
 	collection := NewFrameCollection(1)
 
 	assert.Panics(t, func() {
@@ -73,6 +99,16 @@ func TestFramesCollectionShouldCorrectlyHandleAccessBasedOnLength(t *testing.T) 
 	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam)
 	err := collection.Push(frame)
 	assert.Nil(t, err)
+
+	assert.Panics(t, func() {
+		collection.Count()
+	})
+
+	assert.Panics(t, func() {
+		collection.GetAll()
+	})
+
+	collection.Lock()
 
 	frames := collection.GetAll()
 	assert.NotNil(t, frames)

@@ -108,9 +108,12 @@ func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error)
 		return nil, fmt.Errorf("analyzer: failed to apply the given buffer as the video frame buffer: %w", err)
 	}
 
+	// NOTE: Due to the fact that the internal video implementation works in such a way, that the frame count is an approximation instead of an
+	// exact value, the frameCount is used as an initial capacity value for the frames collection and not the result fixed size/frames count.
 	frameNumber := 1
-	frameCount := video.Frames()
+	frameCount := video.FramesCountApprox()
 	frames := frame.NewFrameCollection(frameCount)
+	defer frames.Lock()
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 

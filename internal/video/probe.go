@@ -3,6 +3,7 @@ package video
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -188,6 +189,12 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 
 	if stateRotate {
 		probe.Width, probe.Height = probe.Height, probe.Width
+	}
+
+	// NOTE: Additional calculation due to the fact that nb_frames is metadata based and is not exact. The greater count value is preferred for now.
+	calculatedFramesCount := int(math.Ceil(probe.Fps * probe.Duration))
+	if probe.Frames < calculatedFramesCount {
+		probe.Frames = calculatedFramesCount
 	}
 
 	return probe, nil

@@ -27,7 +27,7 @@ type Video interface {
 	SetScaleAlgorithm(a options.ScaleAlgorithm) error
 	SetBbox(x, y, w, h int) error
 	SetTargetFrames(n ...int) error
-	Frames() int
+	FramesCountApprox() int
 	SetFrameBuffer(buffer []byte) error
 	Read() error
 	Close()
@@ -150,7 +150,7 @@ func (v *video) IsBboxUsed() bool {
 	return v.Dim.X != v.BboxDim.X || v.Dim.Y != v.BboxDim.Y
 }
 
-func (v *video) Frames() int {
+func (v *video) FramesCountApprox() int {
 	return v.FramesCount
 }
 

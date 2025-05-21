@@ -68,6 +68,8 @@ func TestExportCachedFrameCollectionShouldExportAndImport(t *testing.T) {
 
 func mockFrameCollection(capacity int) FrameCollection {
 	fc := NewFrameCollection(capacity)
+	defer fc.Lock()
+
 	for index := 0; index < capacity; index += 1 {
 		fc.Push(CreateNewFrame(mockImage(color.White), mockImage(color.White), index+1, BinaryThresholdParam))
 	}

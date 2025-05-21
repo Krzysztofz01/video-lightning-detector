@@ -4,18 +4,21 @@ import (
 	"fmt"
 )
 
+const baseFrameCollectionCapacity = 32
+
 // Structure representing the collection of video frames.
 type FrameCollection interface {
 	Push(frame *Frame) error
 	GetAll() []*Frame
 	Count() int
+	Lock()
 }
 
 type frameCollection struct {
 	Frames   []*Frame
 	Index    int
 	Capacity int
-	Strict   bool
+	Locked   bool
 }
 
 func (fc *frameCollection) Push(frame *Frame) error {
@@ -23,34 +26,44 @@ func (fc *frameCollection) Push(frame *Frame) error {
 		return fmt.Errorf("frame: invalid uninitialized frame reference")
 	}
 
-	if fc.Index >= fc.Capacity {
-		return fmt.Errorf("frame: frame collection capacity exceeded")
+	if fc.Locked {
+		return fmt.Errorf("frame: frame collection is locked")
 	}
 
 	if fc.Index != frame.OrdinalNumber-1 {
 		return fmt.Errorf("frame: collection indexing and provided frame order missmatch")
 	}
 
-	fc.Frames[fc.Index] = frame
+	if fc.Index < fc.Capacity {
+		fc.Frames[fc.Index] = frame
+	} else {
+		fc.Frames = append(fc.Frames, frame)
+	}
+
 	fc.Index += 1
 
 	return nil
 }
 
 func (fc *frameCollection) GetAll() []*Frame {
-	if fc.Strict && fc.Index != fc.Capacity {
-		panic("frame: can not access a unsaturated frame collection")
+	if !fc.Locked {
+		panic("frame: can not read from an unlocked frame collection")
 	}
 
-	return fc.Frames
+	a := fc.Frames[:fc.Index]
+	return a
 }
 
 func (fc *frameCollection) Count() int {
-	if fc.Strict && fc.Index != fc.Capacity {
-		panic("frame: can not access a unsaturated frame collection")
+	if !fc.Locked {
+		panic("frame: can not read from an unlocked frame collection")
 	}
 
-	return len(fc.Frames)
+	return fc.Index
+}
+
+func (fc *frameCollection) Lock() {
+	fc.Locked = true
 }
 
 func NewFrameCollection(cap int) FrameCollection {
@@ -59,9 +72,9 @@ func NewFrameCollection(cap int) FrameCollection {
 	}
 
 	return &frameCollection{
-		Frames:   make([]*Frame, cap),
+		Frames:   make([]*Frame, cap, baseFrameCollectionCapacity+cap),
 		Index:    0,
 		Capacity: cap,
-		Strict:   true,
+		Locked:   false,
 	}
 }

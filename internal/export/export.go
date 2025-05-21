@@ -189,7 +189,7 @@ func (exporter *exporter) ExportPngFrameImages(detections []int) error {
 		}
 
 		progressStep()
-		exporter.Printer.Info("Frame: [%d/%d]. Frame image exported at: %s", frameIndex+1, video.Frames(), frameImagePath)
+		exporter.Printer.Info("Frame: [%d/%d]. Frame image exported at: %s", frameIndex+1, video.FramesCountApprox(), frameImagePath)
 	}
 
 	progressFinalize()
