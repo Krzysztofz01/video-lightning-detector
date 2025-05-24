@@ -327,9 +327,13 @@ func NewVideo(path string) (Video, error) {
 		return nil, fmt.Errorf("video: the required video processing binaries are not available: %w", err)
 	}
 
-	probe, err := probeVideo(path)
+	probe, err := probeVideoFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("video: failed to probe the target video file: %w", err)
+	}
+
+	if probe.Duration == 0 || probe.Frames == 0 {
+		return nil, fmt.Errorf("video: failed to probe the target video duration or frames count")
 	}
 
 	return &video{

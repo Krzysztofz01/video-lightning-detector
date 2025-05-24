@@ -11,13 +11,23 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
+type streamStrategy int
+
+const (
+	singleStreamStrategy streamStrategy = iota
+	firstStreamStrategy
+)
+
 type probeToken string
 
 const (
-	tokenStreamOpen  probeToken = "[STREAM]"
-	tokenStreamClose probeToken = "[/STREAM]"
-	tokenFormatOpen  probeToken = "[FORMAT]"
-	tokenFormatClose probeToken = "[/FORMAT]"
+	tokenStreamOpen   probeToken = "[STREAM]"
+	tokenStreamClose  probeToken = "[/STREAM]"
+	tokenFormatOpen   probeToken = "[FORMAT]"
+	tokenFormatClose  probeToken = "[/FORMAT]"
+	tokenProgramOpen  probeToken = "[PROGRAM]"
+	tokenProgramClose probeToken = "[/PROGRAM]"
+	notApplicable     probeToken = "N/A"
 )
 
 type VideoProbe struct {
@@ -28,11 +38,23 @@ type VideoProbe struct {
 	Fps      float64
 }
 
-func probeVideo(path string) (VideoProbe, error) {
+func probeVideoFile(path string) (VideoProbe, error) {
 	if !utils.FileExists(path) {
 		return VideoProbe{}, fmt.Errorf("video: the probe target video file does not exist")
 	}
 
+	return probeVideo(path, singleStreamStrategy)
+}
+
+func probeVideoStream(url string) (VideoProbe, error) {
+	if !utils.IsValidUrl(url) {
+		return VideoProbe{}, fmt.Errorf("video: the probe target video stream url format is invalid")
+	}
+
+	return probeVideo(url, firstStreamStrategy)
+}
+
+func probeVideo(resource string, strategy streamStrategy) (VideoProbe, error) {
 	cmd := exec.Command(
 		ffprobeBinaryName,
 		"-select_streams", "v",
@@ -40,7 +62,7 @@ func probeVideo(path string) (VideoProbe, error) {
 		"-show_entries", "stream=width,height,rotation,nb_frames,r_frame_rate",
 		"-show_entries", "format=duration",
 		"-of", "default=noprint_wrappers=0:nokey=0",
-		path,
+		resource,
 	)
 
 	stdout, err := cmd.Output()
@@ -48,7 +70,7 @@ func probeVideo(path string) (VideoProbe, error) {
 		return VideoProbe{}, fmt.Errorf("video: failed to probe the video: %w", err)
 	}
 
-	result, err := parseProbeResult(stdout)
+	result, err := parseProbeResult(stdout, strategy)
 	if err != nil {
 		return VideoProbe{}, fmt.Errorf("video: failed to parse the video probe result: %w", err)
 	}
@@ -56,17 +78,18 @@ func probeVideo(path string) (VideoProbe, error) {
 	return result, nil
 }
 
-func parseProbeResult(stdout []byte) (VideoProbe, error) {
+func parseProbeResult(stdout []byte, strategy streamStrategy) (VideoProbe, error) {
 	reader := strings.NewReader(string(stdout))
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(bufio.ScanLines)
 
 	var (
-		probe             VideoProbe = VideoProbe{}
-		stateRotate       bool       = false
-		stateStreamCount  int        = 0
-		stateStreamParity int        = 0
-		stateFormatParity int        = 0
+		probe              VideoProbe = VideoProbe{}
+		stateRotate        bool       = false
+		stateStreamCount   int        = 0
+		stateStreamParity  int        = 0
+		stateFormatParity  int        = 0
+		stateProgramParity int        = 0
 	)
 
 	var (
@@ -74,12 +97,24 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 		value string
 	)
 
+scanning:
 	for scanner.Scan() {
 		switch scanner.Text() {
 		case string(tokenStreamOpen):
 			{
-				if stateStreamCount > 0 {
-					return VideoProbe{}, fmt.Errorf("video: video files containing multiple video streams are not supported")
+				switch strategy {
+				case singleStreamStrategy:
+					{
+						if stateStreamCount > 0 {
+							return VideoProbe{}, fmt.Errorf("video: video files containing multiple video streams are not supported")
+						}
+					}
+				case firstStreamStrategy:
+					{
+						if stateStreamCount == 1 && stateStreamParity == 0 {
+							break scanning
+						}
+					}
 				}
 
 				stateStreamCount += 1
@@ -99,6 +134,16 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 		case string(tokenFormatClose):
 			{
 				stateFormatParity -= 1
+				continue
+			}
+		case string(tokenProgramOpen):
+			{
+				stateProgramParity += 1
+				continue
+			}
+		case string(tokenProgramClose):
+			{
+				stateProgramParity -= 1
 				continue
 			}
 		default:
@@ -130,6 +175,11 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 			}
 		case "duration":
 			{
+				if value == string(notApplicable) {
+					probe.Duration = 0
+					continue
+				}
+
 				if v, err := strconv.ParseFloat(value, 64); err != nil {
 					return VideoProbe{}, fmt.Errorf("video: failed to parse the probed video duration: %w", err)
 				} else {
@@ -138,6 +188,11 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 			}
 		case "nb_frames":
 			{
+				if value == string(notApplicable) {
+					probe.Frames = 0
+					continue
+				}
+
 				if v, err := strconv.ParseInt(value, 10, 0); err != nil {
 					return VideoProbe{}, fmt.Errorf("video: failed to parse the probed video frames count: %w", err)
 				} else {
@@ -183,7 +238,7 @@ func parseProbeResult(stdout []byte) (VideoProbe, error) {
 		return VideoProbe{}, fmt.Errorf("video: the video contains a invalid number of video streams")
 	}
 
-	if stateStreamParity != 0 || stateFormatParity != 0 {
+	if stateStreamParity != 0 || stateFormatParity != 0 || stateProgramParity != 0 {
 		return VideoProbe{}, fmt.Errorf("video: failed to probe the video due to invalid probe result format")
 	}
 
