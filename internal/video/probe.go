@@ -11,6 +11,8 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
+const frameChannelDepth int = 4
+
 type streamStrategy int
 
 const (

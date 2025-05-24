@@ -3,6 +3,7 @@ package video
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os/exec"
 	"strings"
 
@@ -10,49 +11,53 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-// FIXME: Add support for hardware accelerated decoding
-
-type Video interface {
+type VideoStream interface {
 	GetInputDimensions() (int, int)
 	GetOutputDimensions() (int, int)
 	SetScale(s float64) error
 	SetScaleAlgorithm(a options.ScaleAlgorithm) error
 	SetBbox(x, y, w, h int) error
-	SetTargetFrames(n ...int) error
-	FramesCountApprox() int
 	SetFrameBuffer(buffer []byte) error
+	SetHttpHeaders(headers http.Header) error
 	Read() error
 	Close()
 }
 
-type video struct {
-	FilePath       string
+type videoStream struct {
+	Url            string
+	HttpHeaders    http.Header
 	Dim            utils.Vec2i
 	BboxAnchor     utils.Vec2i
 	BboxDim        utils.Vec2i
 	Scale          float64
 	ScaleAlgorithm options.ScaleAlgorithm
-	TargetFrames   []int
-	Duration       float64
 	Fps            float64
-	FramesCount    int
 	FrameBuffer    []byte
 	Process        *exec.Cmd
 	Pipe           io.ReadCloser
 }
 
-func (v *video) GetInputDimensions() (int, int) {
+func (v *videoStream) SetHttpHeaders(headers http.Header) error {
+	if headers == nil {
+		return fmt.Errorf("video: the provided http headers reference is nil")
+	}
+
+	v.HttpHeaders = headers
+	return nil
+}
+
+func (v *videoStream) GetInputDimensions() (int, int) {
 	return v.Dim.X, v.Dim.Y
 }
 
-func (v *video) GetScaledDimensions() (int, int) {
+func (v *videoStream) GetScaledDimensions() (int, int) {
 	wF := float64(v.Dim.X) * v.Scale
 	hF := float64(v.Dim.Y) * v.Scale
 
 	return int(wF), int(hF)
 }
 
-func (v *video) GetOutputBbox() (int, int, int, int) {
+func (v *videoStream) GetOutputBbox() (int, int, int, int) {
 	xF := float64(v.BboxAnchor.X) * v.Scale
 	yF := float64(v.BboxAnchor.Y) * v.Scale
 	wF := float64(v.BboxDim.X) * v.Scale
@@ -61,13 +66,13 @@ func (v *video) GetOutputBbox() (int, int, int, int) {
 	return int(xF), int(yF), int(wF), int(hF)
 }
 
-func (v *video) GetOutputDimensions() (int, int) {
+func (v *videoStream) GetOutputDimensions() (int, int) {
 	_, _, w, h := v.GetOutputBbox()
 
 	return w, h
 }
 
-func (v *video) SetScaleAlgorithm(a options.ScaleAlgorithm) error {
+func (v *videoStream) SetScaleAlgorithm(a options.ScaleAlgorithm) error {
 	if v.IsInitialized() {
 		return fmt.Errorf("video: can not change scale algorithm after initialization")
 	}
@@ -80,7 +85,7 @@ func (v *video) SetScaleAlgorithm(a options.ScaleAlgorithm) error {
 	return nil
 }
 
-func (v *video) SetScale(s float64) error {
+func (v *videoStream) SetScale(s float64) error {
 	if v.IsInitialized() {
 		return fmt.Errorf("video: can not change scale after initialization")
 	}
@@ -93,25 +98,25 @@ func (v *video) SetScale(s float64) error {
 	return nil
 }
 
-func (v *video) SetBbox(x, y, w, h int) error {
+func (v *videoStream) SetBbox(x, y, w, h int) error {
 	if v.IsInitialized() {
 		return fmt.Errorf("video: can not change bbox after initialization")
 	}
 
 	if w <= 0 || h <= 0 {
-		return fmt.Errorf("video: the video bbox sizes can not be negative or zero")
+		return fmt.Errorf("video: the video stream bbox sizes can not be negative or zero")
 	}
 
 	if x < 0 || x >= v.Dim.X || y < 0 || y >= v.Dim.Y {
-		return fmt.Errorf("video: the video bbox anchor is out of the video range")
+		return fmt.Errorf("video: the video stream bbox anchor is out of the video range")
 	}
 
 	if x+w >= v.Dim.X {
-		return fmt.Errorf("video: the video bbox horizontaly overflows the video bounds")
+		return fmt.Errorf("video: the video stream bbox horizontaly overflows the video bounds")
 	}
 
 	if y+h >= v.Dim.Y {
-		return fmt.Errorf("video: the video bbox verticaly overflows the video bounds")
+		return fmt.Errorf("video: the video stream bbox verticaly overflows the video bounds")
 	}
 
 	v.BboxAnchor = utils.Vec2i{X: x, Y: y}
@@ -119,34 +124,11 @@ func (v *video) SetBbox(x, y, w, h int) error {
 	return nil
 }
 
-func (v *video) SetTargetFrames(n ...int) error {
-	if v.IsInitialized() {
-		return fmt.Errorf("video: can not change target frames after initialization")
-	}
-
-	if len(n) == 0 {
-		return fmt.Errorf("video: no frames indexes were specified to extract")
-	}
-
-	for _, nVal := range n {
-		if nVal >= v.FramesCount {
-			return fmt.Errorf("video: the provided frame indexes are not in the frame count range")
-		}
-	}
-
-	v.TargetFrames = n
-	return nil
-}
-
-func (v *video) IsBboxUsed() bool {
+func (v *videoStream) IsBboxUsed() bool {
 	return v.Dim.X != v.BboxDim.X || v.Dim.Y != v.BboxDim.Y
 }
 
-func (v *video) FramesCountApprox() int {
-	return v.FramesCount
-}
-
-func (v *video) SetFrameBuffer(buffer []byte) error {
+func (v *videoStream) SetFrameBuffer(buffer []byte) error {
 	if v.IsInitialized() {
 		return fmt.Errorf("video: can not change the frame buffer after initialization")
 	}
@@ -162,10 +144,10 @@ func (v *video) SetFrameBuffer(buffer []byte) error {
 	return nil
 }
 
-func (v *video) Read() error {
+func (v *videoStream) Read() error {
 	if !v.IsInitialized() {
 		if err := v.Init(); err != nil {
-			return fmt.Errorf("video: failed to initliaze frame reading video stream: %w", err)
+			return fmt.Errorf("video: failed to initliaze frame reading video stream stream: %w", err)
 		}
 	}
 
@@ -180,7 +162,7 @@ func (v *video) Read() error {
 	}
 }
 
-func (v *video) Close() {
+func (v *videoStream) Close() {
 	defer func() {
 		if err := recover(); err != nil {
 			v.Process = nil
@@ -208,32 +190,19 @@ func (v *video) Close() {
 	}
 }
 
-func (v *video) IsInitialized() bool {
+func (v *videoStream) IsInitialized() bool {
 	return v.Process != nil && v.Pipe != nil && v.FrameBuffer != nil
 }
 
-func (v *video) Init() error {
+func (v *videoStream) Init() error {
 	if v.IsInitialized() {
-		return fmt.Errorf("video: video reading process can not be reinitialized")
+		return fmt.Errorf("video: video stream reading process can not be reinitialized")
 	}
 
 	var (
 		filters []string = make([]string, 0, 16)
 		args    []string = make([]string, 0, 32)
 	)
-
-	if v.TargetFrames != nil {
-		frames := strings.Builder{}
-		for index, n := range v.TargetFrames {
-			if index != 0 {
-				frames.WriteRune('+')
-			}
-
-			frames.WriteString(fmt.Sprintf("eq(n\\,%d)", n))
-		}
-
-		filters = append(filters, fmt.Sprintf("select='%s'", frames.String()))
-	}
 
 	if v.Scale != 1 {
 		w, h := v.GetScaledDimensions()
@@ -267,7 +236,7 @@ func (v *video) Init() error {
 		filters = append(filters, fmt.Sprintf("crop=%d:%d:%d:%d", w, h, x, y))
 	}
 
-	args = append(args, "-i", v.FilePath)
+	args = append(args, "-i", v.Url)
 	args = append(args, "-loglevel", "quiet")
 	args = append(args, "-hide_banner")
 	args = append(args, "-f", "image2pipe")
@@ -275,13 +244,22 @@ func (v *video) Init() error {
 	args = append(args, "-vcodec", "rawvideo")
 	args = append(args, "-map", "0:v:0")
 
+	if len(v.HttpHeaders) > 0 {
+		headerEntries := make([]string, 0, len(v.HttpHeaders))
+		for key, values := range v.HttpHeaders {
+			value := strings.Join(values, ", ")
+			headerEntries = append(headerEntries, fmt.Sprintf("%s: %s", key, value))
+		}
+
+		// NOTE: According to FFmpeg documentation the headers should be separated with CRLF
+		headers := strings.Join(headerEntries, string([]byte{0x0D, 0x0A}))
+
+		args = append(args, "-headers", headers)
+	}
+
 	if len(filters) > 0 {
 		filter := strings.Join(filters, ",")
 		args = append(args, "-vf", filter)
-	}
-
-	if v.TargetFrames != nil {
-		args = append(args, "-vsync", "0")
 	}
 
 	args = append(args, "-")
@@ -310,37 +288,31 @@ func (v *video) Init() error {
 	return nil
 }
 
-func NewVideo(path string) (Video, error) {
-	if !utils.FileExists(path) {
-		return nil, fmt.Errorf("video: the video file specified by the path does not exist")
+func NewVideoStream(url string) (VideoStream, error) {
+	if !utils.IsValidUrl(url) {
+		return nil, fmt.Errorf("video: the video stream url is invalid")
 	}
 
 	if ok, err := AreBinariesAvailable(); !ok && err != nil {
 		return nil, fmt.Errorf("video: the required video processing binaries are not available: %w", err)
 	}
 
-	probe, err := probeVideoFile(path)
+	probe, err := probeVideoStream(url)
 	if err != nil {
-		return nil, fmt.Errorf("video: failed to probe the target video file: %w", err)
+		return nil, fmt.Errorf("video: failed to probe the target video stream: %w", err)
 	}
 
-	if probe.Duration == 0 || probe.Frames == 0 {
-		return nil, fmt.Errorf("video: failed to probe the target video duration or frames count")
-	}
-
-	return &video{
-		FilePath:       path,
+	return &videoStream{
+		Url:            url,
+		HttpHeaders:    http.Header{},
 		Dim:            utils.Vec2i{X: probe.Width, Y: probe.Height},
 		BboxAnchor:     utils.Vec2i{X: 0, Y: 0},
 		BboxDim:        utils.Vec2i{X: probe.Width, Y: probe.Height},
 		Scale:          1,
-		Duration:       probe.Duration,
+		ScaleAlgorithm: options.Default,
 		Fps:            probe.Fps,
-		FramesCount:    probe.Frames,
 		FrameBuffer:    nil,
 		Process:        nil,
 		Pipe:           nil,
-		ScaleAlgorithm: options.Default,
-		TargetFrames:   nil,
 	}, nil
 }
