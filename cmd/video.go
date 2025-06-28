@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
@@ -28,6 +29,13 @@ var videoCmd = &cobra.Command{
 	Short: "Perform the analysis, detection and export stage on single video.",
 	Long:  "Perform the analysis, detection and export stage on single video.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		printer.Configure(printer.PrinterConfig{
+			UseColor:     true,
+			LogLevel:     LogLevel,
+			OutStream:    os.Stdout,
+			ParsableMode: false,
+		})
+
 		detectorInstance, err := detector.CreateDetector(printer.Instance(), DetectorOptions)
 		if err != nil {
 			return fmt.Errorf("cmd: failed to create the detector instance: %w", err)

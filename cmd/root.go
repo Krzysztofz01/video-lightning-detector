@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
-	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
 )
 
 var (
@@ -144,11 +143,4 @@ func Execute(args []string) {
 var rootCmd = &cobra.Command{
 	Use:  "vld",
 	Long: "A video analysis tool that allows to detect and export frames that have captured lightning strikes.",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		printer.Configure(printer.PrinterConfig{
-			UseColor:  true,
-			LogLevel:  LogLevel,
-			OutStream: os.Stdout,
-		})
-	},
 }

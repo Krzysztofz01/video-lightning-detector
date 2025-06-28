@@ -1,6 +1,7 @@
 package printer
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -11,9 +12,10 @@ import (
 // TODO: Implement Printer and PrinterConfig unit test
 
 type PrinterConfig struct {
-	UseColor  bool
-	LogLevel  options.LogLevel
-	OutStream io.Writer
+	UseColor     bool
+	LogLevel     options.LogLevel
+	OutStream    io.Writer
+	ParsableMode bool
 }
 
 func (c *PrinterConfig) IsValid() (bool, string) {
@@ -37,6 +39,7 @@ type Printer interface {
 	Progress(msg string) (finalize func())
 	ProgressSteps(msg string, steps int) (step func(), finalize func())
 	Table(data [][]string)
+	WriteParsable(data any)
 	IsLogLevel(l options.LogLevel) bool
 }
 
@@ -49,11 +52,20 @@ func (p *printer) Debug(format string, args ...any) {
 		return
 	}
 
-	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.DescriptionMessageStyle).Printfln(format, args...)
+	if p.Config.ParsableMode {
+		p.LogParsable("verbose", format, args...)
+	} else {
+		p.LogTerminal(&pterm.ThemeDefault.DescriptionMessageStyle, format, args...)
+	}
+
 }
 
 func (p *printer) Error(format string, args ...any) {
-	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.ErrorMessageStyle).Printfln(format, args...)
+	if p.Config.ParsableMode {
+		p.LogParsable("error", format, args...)
+	} else {
+		p.LogTerminal(&pterm.ThemeDefault.ErrorMessageStyle, format, args...)
+	}
 }
 
 func (p *printer) Info(format string, args ...any) {
@@ -65,12 +77,21 @@ func (p *printer) Info(format string, args ...any) {
 }
 
 func (p *printer) InfoA(format string, args ...any) {
-	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.InfoMessageStyle).Printfln(format, args...)
+	if p.Config.ParsableMode {
+		p.LogParsable("info", format, args...)
+	} else {
+		p.LogTerminal(&pterm.ThemeDefault.InfoMessageStyle, format, args...)
+	}
 }
 
 func (p *printer) Progress(msg string) (finalize func()) {
 	if p.Config.LogLevel < options.Info {
 		return func() {}
+	}
+
+	if p.Config.ParsableMode {
+		p.Warning("Progress printing not supported in parsable mode")
+		return
 	}
 
 	spinner, err := pterm.DefaultSpinner.
@@ -92,6 +113,11 @@ func (p *printer) Progress(msg string) (finalize func()) {
 func (p *printer) ProgressSteps(msg string, steps int) (step func(), finalize func()) {
 	if p.Config.LogLevel < options.Info {
 		return func() {}, func() {}
+	}
+
+	if p.Config.ParsableMode {
+		p.Warning("Step progress printing not supported in parsable mode")
+		return
 	}
 
 	progress, err := pterm.DefaultProgressbar.
@@ -123,6 +149,11 @@ func (p *printer) Table(data [][]string) {
 		return
 	}
 
+	if p.Config.ParsableMode {
+		p.Warning("Table printing not supported in parsable mode")
+		return
+	}
+
 	table := pterm.DefaultTable.
 		WithBoxed(true).
 		WithHasHeader(false).
@@ -134,11 +165,42 @@ func (p *printer) Table(data [][]string) {
 }
 
 func (p *printer) Warning(format string, args ...any) {
-	pterm.DefaultBasicText.WithStyle(&pterm.ThemeDefault.WarningMessageStyle).Printfln(format, args...)
+	if p.Config.ParsableMode {
+		p.LogParsable("warn", format, args...)
+	} else {
+		p.LogTerminal(&pterm.ThemeDefault.WarningMessageStyle, format, args...)
+	}
 }
 
 func (p *printer) IsLogLevel(l options.LogLevel) bool {
 	return p.Config.LogLevel >= l
+}
+
+func (p *printer) WriteParsable(data any) {
+	dataJson, err := json.Marshal(data)
+	if err != nil {
+		panic(fmt.Errorf("printer: failed to marshall parsable message: %w", err))
+	}
+
+	if _, err := fmt.Fprintln(p.Config.OutStream, string(dataJson)); err != nil {
+		panic(fmt.Errorf("printer: failed to write parsable to out stream"))
+	}
+}
+
+func (p *printer) LogTerminal(style *pterm.Style, format string, args ...any) {
+	pterm.DefaultBasicText.WithStyle(style).Printfln(format, args...)
+}
+
+func (p *printer) LogParsable(level string, format string, args ...any) {
+	log := struct {
+		LogLevel string `json:"level"`
+		Message  string `json:"message"`
+	}{
+		LogLevel: string(level),
+		Message:  fmt.Sprintf(format, args...),
+	}
+
+	p.WriteParsable(log)
 }
 
 func NewPrinter(config PrinterConfig) Printer {
