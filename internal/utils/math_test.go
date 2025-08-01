@@ -6,80 +6,67 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMeanShouldPanicForEmptyValueSet(t *testing.T) {
+func TestMeanStdDevShouldPanicForEmptyValueSet(t *testing.T) {
 	assert.Panics(t, func() {
-		Mean([]float64{})
+		MeanStdDev([]float64{})
 	})
 }
 
-func TestMeanShouldCalculateMeanForValueSet(t *testing.T) {
+func TestMeanStdDevShouldCalculateMeanAndStdDevForValueSet(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6}
-	expected := 3.5
+	meanExpected := 3.5
+	stdDevExpected := 1.70782
 
-	const delta float64 = 1e-7
+	const delta float64 = 1e-5
 
-	actual := Mean(values)
+	meanActual, stdDevActual := MeanStdDev(values)
 
-	assert.InDelta(t, expected, actual, delta)
+	assert.InDelta(t, meanExpected, meanActual, delta)
+	assert.InDelta(t, stdDevExpected, stdDevActual, delta)
 }
 
-func TestMovingMeanShouldPanicForEmptyValueSet(t *testing.T) {
+func TestMovingMeanStdDevShouldPanicForEmptyValueSet(t *testing.T) {
 	assert.Panics(t, func() {
-		MovingMean([]float64{}, 0, 2)
+		MovingMeanStdDev([]float64{}, 0, 2)
 	})
 }
 
-func TestMovingMeanShouldPanicForPositionOutOfBounds(t *testing.T) {
+func TestMovingMeanStdDevShouldPanicForPositionOutOfBounds(t *testing.T) {
 	assert.Panics(t, func() {
-		MovingMean([]float64{1, 2}, 2, 2)
+		MovingMeanStdDev([]float64{1, 2}, 2, 2)
 	})
 }
 
 func TestMovingMeanShouldCalculateMeanForValueSet(t *testing.T) {
 	cases := []struct {
-		set      []float64
-		position int
-		bias     int
-		expected float64
+		set            []float64
+		position       int
+		bias           int
+		meanExpected   float64
+		stdDevExpected float64
 	}{
-		{[]float64{3, 2, 1, 2, 3, 4}, 0, 1, 2.5},
-		{[]float64{3, 2, 1, 2, 3, 4}, 1, 1, 2.0},
-		{[]float64{3, 2, 1, 2, 3, 4}, 2, 1, 1.666667},
-		{[]float64{3, 2, 1, 2, 3, 4}, 3, 1, 2.0},
-		{[]float64{3, 2, 1, 2, 3, 4}, 4, 1, 3.0},
-		{[]float64{3, 2, 1, 2, 3, 4}, 5, 1, 3.5},
+		{[]float64{3, 2, 1, 2, 3, 4}, 0, 1, 2.5, 0.50000},
+		{[]float64{3, 2, 1, 2, 3, 4}, 1, 1, 2.0, 0.81649},
+		{[]float64{3, 2, 1, 2, 3, 4}, 2, 1, 1.666667, 0.471404},
+		{[]float64{3, 2, 1, 2, 3, 4}, 3, 1, 2.0, 0.816496},
+		{[]float64{3, 2, 1, 2, 3, 4}, 4, 1, 3.0, 0.816496},
+		{[]float64{3, 2, 1, 2, 3, 4}, 5, 1, 3.5, 0.5},
 
-		{[]float64{3, 2, 1, 2, 3, 4}, 0, 0, 3},
-		{[]float64{3, 2, 1, 2, 3, 4}, 1, 0, 2},
-		{[]float64{3, 2, 1, 2, 3, 4}, 2, 0, 1},
-		{[]float64{3, 2, 1, 2, 3, 4}, 3, 0, 2},
-		{[]float64{3, 2, 1, 2, 3, 4}, 4, 0, 3},
-		{[]float64{3, 2, 1, 2, 3, 4}, 5, 0, 4},
+		{[]float64{3, 2, 1, 2, 3, 4}, 0, 0, 3, 0},
+		{[]float64{3, 2, 1, 2, 3, 4}, 1, 0, 2, 0},
+		{[]float64{3, 2, 1, 2, 3, 4}, 2, 0, 1, 0},
+		{[]float64{3, 2, 1, 2, 3, 4}, 3, 0, 2, 0},
+		{[]float64{3, 2, 1, 2, 3, 4}, 4, 0, 3, 0},
+		{[]float64{3, 2, 1, 2, 3, 4}, 5, 0, 4, 0},
 	}
 
 	const delta float64 = 1e-5
 	for _, c := range cases {
-		actual := MovingMean(c.set, c.position, c.bias)
+		meanActual, stdDevActual := MovingMeanStdDev(c.set, c.position, c.bias)
 
-		assert.InDelta(t, c.expected, actual, delta)
+		assert.InDelta(t, c.meanExpected, meanActual, delta)
+		assert.InDelta(t, c.stdDevExpected, stdDevActual, delta)
 	}
-}
-
-func TestStandardDeviationShouldPanicForEmptyValueSet(t *testing.T) {
-	assert.Panics(t, func() {
-		StandardDeviation([]float64{})
-	})
-}
-
-func TestStandardDeviationShouldCalculateStandardDeviationForValueSet(t *testing.T) {
-	values := []float64{1, 2, 3, 4, 5, 6}
-	expected := 1.70782
-
-	const delta float64 = 1e-5
-
-	actual := StandardDeviation(values)
-
-	assert.InDelta(t, expected, actual, delta)
 }
 
 func TestMinMaxShouldPanicForEmptyValueSet(t *testing.T) {
