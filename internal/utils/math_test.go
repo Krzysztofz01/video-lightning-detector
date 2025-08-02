@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,32 @@ func TestMeanStdDevShouldCalculateMeanAndStdDevForValueSet(t *testing.T) {
 	const delta float64 = 1e-5
 
 	meanActual, stdDevActual := MeanStdDev(values)
+
+	assert.InDelta(t, meanExpected, meanActual, delta)
+	assert.InDelta(t, stdDevExpected, stdDevActual, delta)
+}
+
+func TestMeanStdDevIncShouldPanicForNegativeLength(t *testing.T) {
+	assert.Panics(t, func() {
+		MeanStdDevInc(1, 1, 0, -1)
+	})
+}
+
+func TestMeanStdDevIncShouldCalculateMeanAndStdDevForValueSet(t *testing.T) {
+	values := []float64{1, 2, 3, 4, 5, 6}
+	meanExpected := 3.5
+	stdDevExpected := 1.70782
+
+	const delta float64 = 1e-5
+
+	var (
+		meanActual   float64 = 0.0
+		stdDevActual float64 = 0.0
+	)
+
+	for index, value := range values {
+		meanActual, stdDevActual = MeanStdDevInc(value, meanActual, stdDevActual, index)
+	}
 
 	assert.InDelta(t, meanExpected, meanActual, delta)
 	assert.InDelta(t, stdDevExpected, stdDevActual, delta)
@@ -76,7 +103,7 @@ func TestMinMaxShouldPanicForEmptyValueSet(t *testing.T) {
 }
 
 func TestMinMaxShouldCalculateMinMaxForValueSet(t *testing.T) {
-	values := []float64{1, 2, 3, 4, 5, 6}
+	values := []float64{2, 3, 4, 5, 6, 1}
 	minExpected := 1.0
 	maxExpected := 6.0
 
@@ -88,7 +115,27 @@ func TestMinMaxShouldCalculateMinMaxForValueSet(t *testing.T) {
 	assert.InDelta(t, maxExpected, maxActual, delta)
 }
 
-func TestMinIntShoudlReturnTheSmallerValues(t *testing.T) {
+func TestMinMaxIncShouldCalculateMinMaxForValueSet(t *testing.T) {
+	values := []float64{2, 3, 4, 5, 6, 1}
+	minExpected := 1.0
+	maxExpected := 6.0
+
+	const delta float64 = 1e-5
+
+	var (
+		minActual float64 = math.Inf(+1)
+		maxActual float64 = math.Inf(-1)
+	)
+
+	for _, value := range values {
+		minActual, maxActual = MinMaxInc(value, minActual, maxActual)
+	}
+
+	assert.InDelta(t, minExpected, minActual, delta)
+	assert.InDelta(t, maxExpected, maxActual, delta)
+}
+
+func TestMinIntShouldReturnTheSmallerValues(t *testing.T) {
 	cases := map[struct {
 		x int
 		y int
@@ -104,5 +151,24 @@ func TestMinIntShoudlReturnTheSmallerValues(t *testing.T) {
 		actual := MinInt(c.x, c.y)
 
 		assert.Equal(t, expected, actual)
+	}
+}
+func TestDivShouldDivAndUseFallback(t *testing.T) {
+	cases := []struct {
+		a        float64
+		b        float64
+		fallback float64
+		expected float64
+	}{
+		{1, 1, 0, 1 / 1},
+		{1, -1, 0, 1 / -1},
+		{1, 0, 0, 0},
+		{1, 0, 1, 1},
+	}
+
+	for _, c := range cases {
+		actual := Div(c.a, c.b, c.fallback)
+
+		assert.Equal(t, c.expected, actual)
 	}
 }

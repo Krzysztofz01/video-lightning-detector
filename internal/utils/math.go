@@ -64,10 +64,30 @@ func MeanStdDev(x []float64) (float64, float64) {
 	return mean, stdDev
 }
 
+// Calculate the mean and standard deviation values in an incremental way using the previous mean, standard
+// deviation, set length and the incoming new value. Panic if the length is negative
+func MeanStdDevInc(value, mean, stdDev float64, length int) (float64, float64) {
+	if length < 0 {
+		panic("utils: can not calculate the incremental mean and standard deviation with an negative length")
+	}
+
+	if length == 0 {
+		return value, 0
+	}
+
+	lf := float64(length)
+
+	meanInc := (mean*lf + value) / (lf + 1)
+
+	stdDevInc := math.Sqrt(((lf)*stdDev*stdDev + (value-meanInc)*(value-mean)) / (lf + 1))
+
+	return meanInc, stdDevInc
+}
+
 // Calcualte the min and max value of the provided set. Panic if the value set is empty.
 func MinMax(x []float64) (float64, float64) {
 	if len(x) == 0 {
-		panic("utils: can not calucalte the max value of an empty set")
+		panic("utils: can not calculate the max value of an empty set")
 	}
 
 	var (
@@ -83,6 +103,19 @@ func MinMax(x []float64) (float64, float64) {
 		if value > max {
 			max = value
 		}
+	}
+
+	return min, max
+}
+
+// Calculate the min and max value in a incremental way using the three provided values.
+func MinMaxInc(value, min, max float64) (float64, float64) {
+	if value < min {
+		min = value
+	}
+
+	if value > max {
+		max = value
 	}
 
 	return min, max
