@@ -41,6 +41,44 @@ func MovingMeanStdDev(x []float64, position, bias int) (float64, float64) {
 	return mean, stdDev
 }
 
+// Calculate the moving mean and standard deviation in a incremental way. Provide the push and pop values, current dataset mean
+// stddev and length. Other functions MovingMeanStd functions here are taking the position of the calculation center point and
+// taking half of the bias left and right. This function takes a bias amount of left values.
+func MovingMeanStdDevInc(value, discardValue, mean, stdDev float64, length, bias int) (float64, float64) {
+	if length < 0 {
+		panic("utils: can not calculate the incremental moving mean of an empty set")
+	}
+
+	if length == 0 {
+		return value, 0
+	}
+
+	var (
+		lengthf    float64
+		meanNext   float64
+		stdDevNext float64
+	)
+
+	if length >= bias {
+		lengthf = float64(bias)
+
+		meanDelta := (value - discardValue) / lengthf
+		meanNext = mean + meanDelta
+
+		varSqrtDelta := (value - discardValue) * (value - meanNext + discardValue - mean)
+		stdDevNext = math.Sqrt((stdDev*stdDev*lengthf + varSqrtDelta) / float64(bias))
+	} else {
+		lengthf = float64(length)
+
+		meanNext = (mean*lengthf + value) / (lengthf + 1)
+
+		stdDevDelta := (value - mean) * (value - meanNext)
+		stdDevNext = math.Sqrt(math.Max(0, (lengthf*stdDev*stdDev+stdDevDelta)/(lengthf+1)))
+	}
+
+	return meanNext, stdDevNext
+}
+
 // Calculate the mean and standard deviation values of the provided set. Panic if the value set is empty.
 func MeanStdDev(x []float64) (float64, float64) {
 	if len(x) == 0 {
@@ -79,7 +117,7 @@ func MeanStdDevInc(value, mean, stdDev float64, length int) (float64, float64) {
 
 	meanInc := (mean*lf + value) / (lf + 1)
 
-	stdDevInc := math.Sqrt(((lf)*stdDev*stdDev + (value-meanInc)*(value-mean)) / (lf + 1))
+	stdDevInc := math.Sqrt(math.Max(0, ((lf)*stdDev*stdDev+(value-meanInc)*(value-mean))/(lf+1)))
 
 	return meanInc, stdDevInc
 }

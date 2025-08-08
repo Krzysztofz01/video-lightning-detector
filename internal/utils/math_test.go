@@ -32,12 +32,95 @@ func TestMeanStdDevIncShouldPanicForNegativeLength(t *testing.T) {
 	})
 }
 
+func TestMovingMeanStdDevIncShouldCalculateMeanAndStdDevForValueSet(t *testing.T) {
+	type testCaseDataPoint struct {
+		Value          float64
+		ExpectedMean   float64
+		ExpectedStdDev float64
+	}
+
+	const delta float64 = 1e-10
+
+	cases := []struct {
+		Bias int
+		Data []testCaseDataPoint
+	}{
+		{
+			Bias: 2,
+			Data: []testCaseDataPoint{
+				{1, 1, 0},
+				{1, 1, 0},
+				{1, 1, 0},
+				{1, 1, 0},
+				{1, 1, 0},
+				{1, 1, 0},
+				{0, 0.5, 0.5},
+				{0, 0, 0},
+			},
+		},
+		{
+			Bias: 2,
+			Data: []testCaseDataPoint{
+				{1, 1, 0},
+				{2, 1.5, 0.5},
+				{3, 2.5, 0.5},
+				{4, 3.5, 0.5},
+				{8, 6, 2},
+				{16, 12, 4},
+				{0, 8, 8},
+				{0, 0, 0},
+			},
+		},
+		{
+			Bias: 3,
+			Data: []testCaseDataPoint{
+				{0.12, 0.12, 0},
+				{0.63, 0.375, 0.255},
+				{0.21, 0.32, 0.22226110770893},
+				{0.96, 0.6, 0.30692018506446},
+				{0.23, 0.46666666666667, 0.34893488727205},
+				{0.16, 0.45, 0.36175498153677},
+				{0.32, 0.23666666666667, 0.065489609014628},
+				{0.23, 0.23666666666667, 0.065489609014628},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		var (
+			prevMean     float64 = 0
+			prevStdDev   float64 = 0
+			discardValue float64 = 0
+		)
+
+		for index, data := range c.Data {
+			if index >= c.Bias {
+				discardValue = c.Data[index-c.Bias].Value
+			}
+
+			actualMean, actualStdDev := MovingMeanStdDevInc(data.Value, discardValue, prevMean, prevStdDev, index, c.Bias)
+
+			assert.InDelta(t, data.ExpectedMean, actualMean, delta)
+			assert.InDelta(t, data.ExpectedStdDev, actualStdDev, delta)
+
+			prevMean = actualMean
+			prevStdDev = actualStdDev
+		}
+	}
+}
+
+func TestMovingMeanStdDevIncShouldPanicForNegativeLength(t *testing.T) {
+	assert.Panics(t, func() {
+		MovingMeanStdDevInc(1, 1, 1, 0, -1, 2)
+	})
+}
+
 func TestMeanStdDevIncShouldCalculateMeanAndStdDevForValueSet(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6}
 	meanExpected := 3.5
-	stdDevExpected := 1.70782
+	stdDevExpected := 1.7078251276599
 
-	const delta float64 = 1e-5
+	const delta float64 = 1e-10
 
 	var (
 		meanActual   float64 = 0.0
