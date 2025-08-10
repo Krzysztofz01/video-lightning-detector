@@ -236,6 +236,26 @@ func TestMinIntShouldReturnTheSmallerValues(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	}
 }
+
+func TestMaxIntShouldReturnTheGreaterValues(t *testing.T) {
+	cases := map[struct {
+		x int
+		y int
+	}]int{
+		{0, 1}:   1,
+		{0, -1}:  0,
+		{1, 1}:   1,
+		{1, 2}:   2,
+		{-1, -2}: -1,
+	}
+
+	for c, expected := range cases {
+		actual := MaxInt(c.x, c.y)
+
+		assert.Equal(t, expected, actual)
+	}
+}
+
 func TestDivShouldDivAndUseFallback(t *testing.T) {
 	cases := []struct {
 		a        float64

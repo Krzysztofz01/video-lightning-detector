@@ -168,6 +168,15 @@ func MinInt(x, y int) int {
 	}
 }
 
+// Return the bigger value of x or y. This function does not support the edge cases like math.Max
+func MaxInt(x, y int) int {
+	if x > y {
+		return x
+	} else {
+		return y
+	}
+}
+
 // Divide a by b and return fallback for zero-division
 func Div(a, b, fallback float64) float64 {
 	if b == 0 {
