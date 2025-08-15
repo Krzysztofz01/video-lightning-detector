@@ -1,6 +1,7 @@
 package video
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -153,9 +154,9 @@ func (v *videoStream) Read() error {
 
 	if _, err := io.ReadFull(v.Pipe, v.FrameBuffer); err == nil {
 		return nil
-	} else if err == io.EOF {
+	} else if errors.Is(err, io.EOF) {
 		return io.EOF
-	} else if err == io.ErrUnexpectedEOF {
+	} else if errors.Is(err, io.ErrUnexpectedEOF) {
 		return fmt.Errorf("video: failed to read the video frame data via the process pipe due to invalid data length")
 	} else {
 		return fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
