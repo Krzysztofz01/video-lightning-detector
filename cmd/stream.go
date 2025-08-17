@@ -17,7 +17,7 @@ var (
 )
 
 func init() {
-	streamCmd.Flags().StringVarP(&InputVideoPath, "input-video-stream-url", "i", "", "Input video stream url to perform the lightning detection.")
+	streamCmd.Flags().StringVarP(&InputVideoStreamUrl, "input-video-stream-url", "i", "", "Input video stream url to perform the lightning detection.")
 	streamCmd.MarkPersistentFlagRequired("input-video-stream-url")
 
 	streamCmd.PersistentFlags().Float64VarP(

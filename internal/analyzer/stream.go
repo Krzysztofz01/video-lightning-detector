@@ -62,14 +62,14 @@ func (analyzer *streamAnalyzer) PeekFrameImage(index int) (*image.RGBA, error) {
 func (analyzer *streamAnalyzer) Initialize() error {
 	video, err := video.NewVideoStream(analyzer.StreamUrl)
 	if err != nil {
-		return fmt.Errorf("analyzer: failed to open the video stream for the analysis stage")
+		return fmt.Errorf("analyzer: failed to open the video stream for the analysis stage: %w", err)
 	}
 
-	if err := video.SetScale(analyzer.Options.FrameScalingFactor); err != nil {
+	if err = video.SetScale(analyzer.Options.FrameScalingFactor); err != nil {
 		return fmt.Errorf("analyzer: failed to set the video scaling to the given frame scaling factor: %w", err)
 	}
 
-	if err := video.SetScaleAlgorithm(analyzer.Options.ScaleAlgorithm); err != nil {
+	if err = video.SetScaleAlgorithm(analyzer.Options.ScaleAlgorithm); err != nil {
 		return fmt.Errorf("analyzer: failed to set the video scaling algorithm for the video: %w", err)
 	}
 
@@ -79,7 +79,7 @@ func (analyzer *streamAnalyzer) Initialize() error {
 			return fmt.Errorf("analyzer: failed to parse the detection bounds expression: %w", err)
 		}
 
-		if err := video.SetBbox(x, y, w, h); err != nil {
+		if err = video.SetBbox(x, y, w, h); err != nil {
 			return fmt.Errorf("analyzer: failed to apply the detection bounds to the video: %w", err)
 		}
 	}
@@ -87,7 +87,7 @@ func (analyzer *streamAnalyzer) Initialize() error {
 	targetWidth, targetHeight := video.GetOutputDimensions()
 	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 
-	if err := video.SetFrameBuffer(frameCurrent.Pix); err != nil {
+	if err = video.SetFrameBuffer(frameCurrent.Pix); err != nil {
 		return fmt.Errorf("analyzer: failed to apply the given buffer as the video frame buffer: %w", err)
 	}
 
@@ -130,15 +130,23 @@ func (analyzer *streamAnalyzer) Next() error {
 		}
 	}
 
-	frameImagePrevious, err := analyzer.FrameImageBuffer.GetHead(0)
-	if err != nil {
-		return fmt.Errorf("analyzer: failed to access the previous frame image pointer from the buffer: %w", err)
+	var (
+		frameImagePrevious *image.RGBA = nil
+		err                error
+	)
+
+	if analyzer.FrameNumber > 1 {
+		if frameImagePrevious, err = analyzer.FrameImageBuffer.GetHead(0); err != nil {
+			return fmt.Errorf("analyzer: failed to access the previous frame image pointer from the buffer: %w", err)
+		}
 	}
 
 	f := &timedFrame{
 		Frame:     frame.CreateNewFrame(analyzer.FrameImageCurrent, frameImagePrevious, analyzer.FrameNumber, frame.BinaryThresholdParam),
 		Timestamp: timestamp,
 	}
+
+	analyzer.Printer.Debug("Frame: [%d]. Brightness: %f ColorDiff: %f BTDiff: %f", analyzer.FrameNumber, f.Frame.Brightness, f.Frame.ColorDifference, f.Frame.BinaryThresholdDifference)
 
 	analyzer.FrameNumber += 1
 
