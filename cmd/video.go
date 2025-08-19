@@ -147,7 +147,7 @@ var videoCmd = &cobra.Command{
 			return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
 		}
 
-		if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath); err != nil {
+		if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath, cmd.Context()); err != nil {
 			return fmt.Errorf("cmd: detector run failed: %w", err)
 		}
 

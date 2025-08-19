@@ -1,6 +1,7 @@
 package detector
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 // Detector instance that is able to perform a search after ligntning strikes on a video file.
 type Detector interface {
-	Run(inputVideoPath, outputDirectoryPath string) error
+	Run(inputVideoPath, outputDirectoryPath string, ctx context.Context) error
 }
 
 type detector struct {
@@ -42,13 +43,13 @@ func CreateDetector(printer printer.Printer, options options.DetectorOptions) (D
 }
 
 // Perform a lightning detection on the provided video specified by the file path and store the results at the specified directory path.
-func (detector *detector) Run(inputVideoPath, outputDirectoryPath string) error {
+func (detector *detector) Run(inputVideoPath, outputDirectoryPath string, ctx context.Context) error {
 	runTime := time.Now()
 	detector.printer.InfoA("Starting the lightning hunt.")
 
 	analyzer := analyzer.NewAnalyzer(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
 
-	frames, err := analyzer.GetFrames()
+	frames, err := analyzer.GetFrames(ctx)
 	if err != nil {
 		return fmt.Errorf("detector: video analysis stage failed: %w", err)
 	}

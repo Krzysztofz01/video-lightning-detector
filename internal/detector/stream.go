@@ -1,6 +1,7 @@
 package detector
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -17,7 +18,7 @@ import (
 
 // Detector instance that is able to perform a search after ligntning strikes on a continuous video stream.
 type StreamDetector interface {
-	Run(inputVideoStreamUrl string) error
+	Run(inputVideoStreamUrl string, ctx context.Context) error
 }
 
 type streamDetector struct {
@@ -43,7 +44,7 @@ func CreateStreamDetector(printer printer.Printer, options options.StreamDetecto
 	}, nil
 }
 
-func (detector *streamDetector) Run(inputVideoStreamUrl string) error {
+func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Context) error {
 	runTime := time.Now()
 	detector.Printer.InfoA("starting the lightning hunt.")
 
@@ -65,7 +66,15 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string) error {
 		err                     error
 	)
 
+readStream:
 	for {
+		select {
+		case <-ctx.Done():
+			detector.Printer.InfoA("Stopping the lightning hunt.")
+			break readStream
+		default:
+		}
+
 		if err = analyzer.Next(); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
@@ -78,6 +87,15 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string) error {
 
 		stats.Push(currentFrame)
 		windowStatistics = stats.Peek()
+
+		detector.Printer.Debug("Frame: [%d]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f)",
+			currentFrame.OrdinalNumber,
+			currentFrame.Brightness,
+			windowStatistics.BrightnessMovingMeanAtPoint,
+			currentFrame.ColorDifference,
+			windowStatistics.ColorDifferenceMovingMeanAtPoint,
+			currentFrame.BinaryThresholdDifference,
+			windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint)
 
 		detections, err := detectionBuffer.PushAndResolveIndexes(currentFrame, windowStatistics)
 		if err != nil {

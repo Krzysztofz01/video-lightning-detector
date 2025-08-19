@@ -146,8 +146,6 @@ func (analyzer *streamAnalyzer) Next() error {
 		Timestamp: timestamp,
 	}
 
-	analyzer.Printer.Debug("Frame: [%d]. Brightness: %f ColorDiff: %f BTDiff: %f", analyzer.FrameNumber, f.Frame.Brightness, f.Frame.ColorDifference, f.Frame.BinaryThresholdDifference)
-
 	analyzer.FrameNumber += 1
 
 	analyzer.FrameBuffer.Push(f)

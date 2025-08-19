@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 )
@@ -26,12 +29,26 @@ func Execute(args []string) {
 		}
 	}()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChannel
+		cancel()
+	}()
+
 	rootCmd.SetArgs(args)
+	rootCmd.SetContext(ctx)
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stdout, "Failure: %s\n", err)
 		os.Exit(1)
 	}
 
+	cancel()
 	os.Exit(0)
 }
 

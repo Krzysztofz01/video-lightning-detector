@@ -106,7 +106,7 @@ var streamCmd = &cobra.Command{
 			return fmt.Errorf("cmd: failed to create the stream detector instance: %w", err)
 		}
 
-		if err := detectorInstance.Run(InputVideoStreamUrl); err != nil {
+		if err := detectorInstance.Run(InputVideoStreamUrl, cmd.Context()); err != nil {
 			return fmt.Errorf("cmd: stream detector run failed: %w", err)
 		}
 
