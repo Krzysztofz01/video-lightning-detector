@@ -66,7 +66,7 @@ func MovingMeanStdDevInc(value, discardValue, mean, stdDev float64, length, bias
 		meanNext = mean + meanDelta
 
 		varSqrtDelta := (value - discardValue) * (value - meanNext + discardValue - mean)
-		stdDevNext = math.Sqrt((stdDev*stdDev*lengthf + varSqrtDelta) / float64(bias))
+		stdDevNext = math.Sqrt(math.Max(0, (stdDev*stdDev*lengthf+varSqrtDelta)/float64(bias)))
 	} else {
 		lengthf = float64(length)
 
