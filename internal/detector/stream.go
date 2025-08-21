@@ -60,6 +60,7 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 
 	var (
 		currentFrame            *frame.Frame
+		currentFrameTimestamp   time.Time
 		detectionFrameTimestamp time.Time
 		detectionFrameImage     *image.RGBA
 		windowStatistics        statistics.DescriptiveStatisticsEntry
@@ -81,21 +82,24 @@ readStream:
 			return fmt.Errorf("detector: video analysis frame access failed: %w", err)
 		}
 
-		if currentFrame, _, err = analyzer.PeekFrame(0); err != nil {
+		if currentFrame, currentFrameTimestamp, err = analyzer.PeekFrame(0); err != nil {
 			return fmt.Errorf("detector: failed to peek the current frame: %w", err)
 		}
 
 		stats.Push(currentFrame)
 		windowStatistics = stats.Peek()
 
-		detector.Printer.Debug("Frame: [%d]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f)",
-			currentFrame.OrdinalNumber,
-			currentFrame.Brightness,
-			windowStatistics.BrightnessMovingMeanAtPoint,
-			currentFrame.ColorDifference,
-			windowStatistics.ColorDifferenceMovingMeanAtPoint,
-			currentFrame.BinaryThresholdDifference,
-			windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint)
+		if detector.Printer.IsLogLevel(options.Verbose) {
+			detector.Printer.Debug("Frame: [%d - %s]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f)",
+				currentFrame.OrdinalNumber,
+				currentFrameTimestamp.Format("15:04:05.000"),
+				currentFrame.Brightness,
+				windowStatistics.BrightnessMovingMeanAtPoint,
+				currentFrame.ColorDifference,
+				windowStatistics.ColorDifferenceMovingMeanAtPoint,
+				currentFrame.BinaryThresholdDifference,
+				windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint)
+		}
 
 		detections, err := detectionBuffer.PushAndResolveIndexes(currentFrame, windowStatistics)
 		if err != nil {
@@ -132,6 +136,16 @@ readStream:
 
 			detectionIndexes.Add(frameIndex)
 		}
+	}
+
+	if detector.Options.DiagnosticMode {
+		detector.Printer.WriteParsable(struct {
+			Statistics statistics.DescriptiveStatisticsEntry `json:"statistics"`
+			FrameCount int                                   `json:"frame-count"`
+		}{
+			Statistics: stats.Peek(),
+			FrameCount: analyzer.FrameCount(),
+		})
 	}
 
 	detector.Printer.InfoA("Lightning hunt was running for: %s", time.Since(runTime))

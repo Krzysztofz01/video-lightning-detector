@@ -31,6 +31,9 @@ type StreamAnalyzer interface {
 	// Access a latest frame image specified by the FIFO index
 	PeekFrameImage(index int) (*image.RGBA, error)
 
+	// Read the count of read frames
+	FrameCount() int
+
 	// Close the internal video stream and cleanup internals
 	Close() error
 }
@@ -152,6 +155,14 @@ func (analyzer *streamAnalyzer) Next() error {
 	copy(analyzer.FrameImageBuffer.PushP().Pix, analyzer.FrameImageCurrent.Pix)
 
 	return nil
+}
+
+func (analyzer *streamAnalyzer) FrameCount() int {
+	if !analyzer.IsInitialized {
+		return 0
+	}
+
+	return analyzer.FrameNumber - 1
 }
 
 func (analyzer *streamAnalyzer) Close() error {

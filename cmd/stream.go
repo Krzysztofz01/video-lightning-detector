@@ -86,6 +86,12 @@ func init() {
 		StreamDetectorOptions.FrameDetectionPlotResolution,
 		"The resolution of the x and y axis of the frame image detection plot.")
 
+	streamCmd.PersistentFlags().BoolVar(
+		&StreamDetectorOptions.DiagnosticMode,
+		"diagnostic",
+		StreamDetectorOptions.DiagnosticMode,
+		"Enable diagnostic mode. Internal statistics will be printed out on stepping out of the detection stage.")
+
 	rootCmd.AddCommand(streamCmd)
 }
 

@@ -15,6 +15,7 @@ type StreamDetectorOptions struct {
 	ScaleAlgorithm                              ScaleAlgorithm
 	FrameDetectionPlotResolution                int
 	FrameDetectionPlotThreshold                 float64
+	DiagnosticMode                              bool
 }
 
 // Return a boolean value representing if the stream detector options are valid. If any validation errors occured
@@ -77,6 +78,7 @@ func (options *StreamDetectorOptions) Clone() StreamDetectorOptions {
 		ScaleAlgorithm:                              options.ScaleAlgorithm,
 		FrameDetectionPlotResolution:                options.FrameDetectionPlotResolution,
 		FrameDetectionPlotThreshold:                 options.FrameDetectionPlotThreshold,
+		DiagnosticMode:                              options.DiagnosticMode,
 	}
 }
 
@@ -94,5 +96,6 @@ func GetDefaultStreamDetectorOptions() StreamDetectorOptions {
 		ScaleAlgorithm:                              Default,
 		FrameDetectionPlotResolution:                25,
 		FrameDetectionPlotThreshold:                 0.95,
+		DiagnosticMode:                              false,
 	}
 }
