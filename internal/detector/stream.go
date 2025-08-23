@@ -61,6 +61,7 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 	var (
 		currentFrame            *frame.Frame
 		currentFrameTimestamp   time.Time
+		detectionFrame          *frame.Frame
 		detectionFrameTimestamp time.Time
 		detectionFrameImage     *image.RGBA
 		windowStatistics        statistics.DescriptiveStatisticsEntry
@@ -113,7 +114,7 @@ readStream:
 
 			detectionPeekIndex := currentFrame.OrdinalNumber - 1 - frameIndex
 
-			if _, detectionFrameTimestamp, err = analyzer.PeekFrame(detectionPeekIndex); err != nil {
+			if detectionFrame, detectionFrameTimestamp, err = analyzer.PeekFrame(detectionPeekIndex); err != nil {
 				return fmt.Errorf("detector: failed to access the detection frame: %w", err)
 			}
 
@@ -125,6 +126,8 @@ readStream:
 			if err != nil {
 				return fmt.Errorf("detector: failed to process the frame strike detection plot: %w", err)
 			}
+
+			detector.Printer.Debug("Frame with ordinal number %d has been classified as a detection", detectionFrame.OrdinalNumber)
 
 			detector.Printer.WriteParsable(struct {
 				Timestamp     time.Time    `json:"timestamp"`

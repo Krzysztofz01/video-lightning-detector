@@ -4,16 +4,26 @@ import (
 	"image"
 	"image/color"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+const testPath = "test"
+
+func testCleanupPath() {
+	_ = os.RemoveAll(testPath)
+}
+
 func TestShouldCreateFileWithTree(t *testing.T) {
+	testCleanupPath()
+	defer testCleanupPath()
+
 	cases := []string{
-		"test_file.test",
-		"test/test_file.txt",
-		"test/test/test_file.txt",
+		path.Join(testPath, "test_file.test"),
+		path.Join(testPath, "test/test_file.txt"),
+		path.Join(testPath, "test/test/test_file.txt"),
 	}
 
 	for _, c := range cases {
@@ -22,9 +32,7 @@ func TestShouldCreateFileWithTree(t *testing.T) {
 		assert.NotNil(t, file)
 		assert.Nil(t, err)
 
-		// NOTE: Cleanup
-		file.Close()
-		os.RemoveAll(c)
+		_ = file.Close()
 	}
 }
 
@@ -38,21 +46,28 @@ func TestShouldNotExportImageAsPngForEmptyPath(t *testing.T) {
 }
 
 func TestShouldNotExportImageAsPngForNilImage(t *testing.T) {
-	err := ExportImageAsPng("test/test_image.png", nil)
+	testCleanupPath()
+	defer testCleanupPath()
+
+	imagePath := path.Join(testPath, "test/test_image.png")
+	err := ExportImageAsPng(imagePath, nil)
 
 	assert.NotNil(t, err)
 }
 
 func TestShouldExportImageAsPngForValidPathAndImage(t *testing.T) {
+	testCleanupPath()
+	defer testCleanupPath()
+
 	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
 	img.Set(0, 0, color.White)
 
-	path := "test/test_image.png"
+	imagePath := path.Join(testPath, "test/test_image.png")
 
-	err := ExportImageAsPng(path, img)
+	assert.False(t, FileExists(imagePath))
 
+	err := ExportImageAsPng(imagePath, img)
 	assert.Nil(t, err)
 
-	// NOTE: Cleanup
-	os.RemoveAll(path)
+	assert.True(t, FileExists(imagePath))
 }

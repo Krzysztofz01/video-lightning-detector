@@ -81,13 +81,11 @@ func parseRangeExpressionSeries(token string) ([]int, error) {
 	return values, nil
 }
 
-// TODO: Add tests
 func IsBoundsExpressionValid(expr string) bool {
 	_, _, _, _, err := ParseBoundsExpression(expr)
-	return err != nil
+	return err == nil
 }
 
-// TODO: Add tests
 func ParseBoundsExpression(expr string) (int, int, int, int, error) {
 	tokens := strings.Split(expr, boundsExpressionSeparatorToken)
 	if len(tokens) != 4 {

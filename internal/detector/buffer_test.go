@@ -32,6 +32,33 @@ func TestDiscreteDetectionBufferShouldCreate(t *testing.T) {
 	}
 }
 
+func TestDiscreteDetectionBufferShouldFailOnAppendingInvalidValues(t *testing.T) {
+	buffer := NewDiscreteDetectionBuffer(options.GetDefaultDetectorOptions(), AboveMovingMeanAllWeights)
+	assert.NotNil(t, buffer)
+
+	stats := statistics.DescriptiveStatisticsEntry{}
+
+	frame1 := &frame.Frame{
+		OrdinalNumber:             10,
+		ColorDifference:           0,
+		BinaryThresholdDifference: 0,
+		Brightness:                0,
+	}
+
+	frame2 := &frame.Frame{
+		OrdinalNumber:             frame1.OrdinalNumber - 1,
+		ColorDifference:           0,
+		BinaryThresholdDifference: 0,
+		Brightness:                0,
+	}
+
+	err := buffer.Push(frame1, stats)
+	assert.Nil(t, err)
+
+	err = buffer.Push(frame2, stats)
+	assert.NotNil(t, err)
+}
+
 func TestDiscreteDetectionBufferCorrectlyResolveAppendedValues(t *testing.T) {
 	const (
 		brightnessThreshold                float64 = 0.5
@@ -137,6 +164,35 @@ func TestContinuousDetectionBufferShouldCreate(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestContinuousDetectionBufferShouldFailOnAppendingInvalidValues(t *testing.T) {
+	buffer := NewContinuousDetectionBuffer(options.GetDefaultStreamDetectorOptions(), AboveMovingMeanAllWeights)
+	assert.NotNil(t, buffer)
+
+	stats := statistics.DescriptiveStatisticsEntry{}
+
+	frame1 := &frame.Frame{
+		OrdinalNumber:             10,
+		ColorDifference:           0,
+		BinaryThresholdDifference: 0,
+		Brightness:                0,
+	}
+
+	frame2 := &frame.Frame{
+		OrdinalNumber:             frame1.OrdinalNumber - 1,
+		ColorDifference:           0,
+		BinaryThresholdDifference: 0,
+		Brightness:                0,
+	}
+
+	result, err := buffer.PushAndResolveIndexes(frame1, stats)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+
+	result, err = buffer.PushAndResolveIndexes(frame2, stats)
+	assert.NotNil(t, err)
+	assert.Nil(t, result)
 }
 
 func TestContinuousDetectionBufferCorrectlyResolveAppendedValues(t *testing.T) {
