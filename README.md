@@ -56,44 +56,64 @@ cd video-lightning-detector
 
 task build:image
 
-docker run --rm vld:latest ./vld version
+docker run --rm vld:latest vld version
 ```
 
 # Commands and flags
-All available flags/commands:
-```sh
+All available flags/commands and flags for the video command:
+```
+-> vld --help
+
 A video analysis tool that allows to detect and export frames that have captured lightning strikes.
 
 Usage:
-  vld [flags]
   vld [command]
 
 Available Commands:
   check       Check if the environment is correctly configured.
   help        Help about any command
+  stream      Perform the analysis and detection stages on continuous video stream.
   version     Print the version numbers.
   video       Perform the analysis, detection and export stage on single video.
+
+Flags:
+  -h, --help                 help for vld
+  -l, --log-level loglevel   The verbosity of the log messages printed to the standard output. (default info)
+```
+
+```sh
+-> vld video --help
+
+Perform the analysis, detection and export stage on single video.
+
+Usage:
+  vld video [flags]
 
 Flags:
   -a, --auto-thresholds                                        Automatic determination of thresholds after video analysis. The specified thresholds will overwrite those determined.
   -t, --binary-threshold-difference-threshold float            The threshold used to determine the difference between two neighbouring frames after the binary thresholding segmentation process. See the documentation for more information on detection threshold values.
   -b, --brightness-threshold float                             The threshold used to determine the brightness of the frame. See the documentation for more information on detection threshold values.
   -c, --color-difference-threshold float                       The threshold used to determine the difference between two neighbouring frames on the color basis. See the documentation for more information on detection threshold values.
-      --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification (1-based indexing). Example: 4,5,8-10,12,14
-  -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ none, stackblur8, stackblur16, stackblur32 ] (default none)
+      --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14
+  -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ stackblur16, stackblur32, none, stackblur8 ] (default none)
       --detection-bounds-expression string                     An expression indicating consecutively the coordinates of the upper left point, width and height of the cutout (bounding box) of the recording to be processed.  Example: 0:0:100:200
   -r, --export-chart-report                                    Export of frame statistics as a chart in HTML format.
       --export-confusion-matrix                                Value indicating if the frames detection classification confusion matrix should be rendered.
   -e, --export-csv-report                                      Export of reports in CSV format.
   -j, --export-json-report                                     Export of reports in JSON format.
-  -h, --help                                                   help for vld
+  -h, --help                                                   help for video
   -p, --import-preanalyzed                                     Use the cached data associated with the video analysis or save it in case the video has not already been analysed.
-  -l, --log-level loglevel                                     The verbosity of the log messages printed to the standard output. (default info)
+  -i, --input-video-path string                                Input video to perform the lightning detection.
   -m, --moving-mean-resolution int32                           Resolution of the moving mean used when determining the statistics of the analysed frames. Has a direct impact on the accuracy of detection. (default 50)
-      --scaling-algorithm scalealgorithm                       Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ area, default, bilinear, bicubic, nearest, lanczos ] (default default)
+  -o, --output-directory-path string                           Output directory path for export artifacts such as frames and reports in selected formats.
+      --scaling-algorithm scalealgorithm                       Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ default, bilinear, bicubic, nearest, lanczos, area ] (default default)
   -s, --scaling-factor float                                   Scaling factor for the frame size of the recording. Has a direct impact on the performance, quality and processing time of recordings. (default 0.5)
   -f, --skip-frames-export                                     Skipping the step in which positively classified frames are exported to image files.
       --strict-explicit-threshold                              Omit strict validation of detection threshold ranges. (default true)
+
+Global Flags:
+  -l, --log-level loglevel   The verbosity of the log messages printed to the standard output. (default info)
+
 ```
 
 # Example usage

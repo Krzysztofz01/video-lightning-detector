@@ -126,27 +126,32 @@ func CreateDescriptiveStatistics(fc frame.FrameCollection, movingMeanResolution 
 		binaryThresholdDiffMovingStdDev = append(binaryThresholdDiffMovingStdDev, movingStdDev)
 	}
 
-	brightnessMin, brightnessMax := utils.MinMax(brightness)
-	colorDiffMin, colorDiffMax := utils.MinMax(colorDiff)
-	btDiffMin, btDiffMax := utils.MinMax(binaryThresholdDiff)
+	var (
+		brightnessMin, brightnessMax     = utils.MinMax(brightness)
+		brightnessMean, brightnessStdDev = utils.MeanStdDev(brightness)
+		colorDiffMin, colorDiffMax       = utils.MinMax(colorDiff)
+		colorDiffMean, colorDiffStdDev   = utils.MeanStdDev(colorDiff)
+		btDiffMin, btDiffMax             = utils.MinMax(binaryThresholdDiff)
+		btDiffMean, btDiffStdDev         = utils.MeanStdDev(binaryThresholdDiff)
+	)
 
 	return DescriptiveStatistics{
-		BrightnessMean:                             utils.Mean(brightness),
+		BrightnessMean:                             brightnessMean,
 		BrightnessMovingMean:                       brightnessMovingMean,
 		BrightnessMovingStdDev:                     brightnessMovingStdDev,
-		BrightnessStandardDeviation:                utils.StandardDeviation(brightness),
+		BrightnessStandardDeviation:                brightnessStdDev,
 		BrightnessMin:                              brightnessMin,
 		BrightnessMax:                              brightnessMax,
-		ColorDifferenceMean:                        utils.Mean(colorDiff),
+		ColorDifferenceMean:                        colorDiffMean,
 		ColorDifferenceMovingMean:                  colorDiffMovingMean,
 		ColorDifferenceMovingStdDev:                colorDiffMovingStdDev,
-		ColorDifferenceStandardDeviation:           utils.StandardDeviation(colorDiff),
+		ColorDifferenceStandardDeviation:           colorDiffStdDev,
 		ColorDifferenceMin:                         colorDiffMin,
 		ColorDifferenceMax:                         colorDiffMax,
-		BinaryThresholdDifferenceMean:              utils.Mean(binaryThresholdDiff),
+		BinaryThresholdDifferenceMean:              btDiffMean,
 		BinaryThresholdDifferenceMovingMean:        binaryThresholdDiffMovingMean,
 		BinaryThresholdDifferenceMovingStdDev:      binaryThresholdDiffMovingStdDev,
-		BinaryThresholdDifferenceStandardDeviation: utils.StandardDeviation(binaryThresholdDiff),
+		BinaryThresholdDifferenceStandardDeviation: btDiffStdDev,
 		BinaryThresholdDifferenceMin:               btDiffMin,
 		BinaryThresholdDifferenceMax:               btDiffMax,
 	}

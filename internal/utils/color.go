@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"image/color"
 	"math"
 )
 
@@ -16,23 +15,6 @@ func init() {
 		} else {
 			linearRgbComponentLookup[x] = math.Pow((xNorm+0.055)/1.055, 2.4)
 		}
-	}
-}
-
-// Convert the provided color represented by the color.Color interface to the color.RGBA struct instance.
-//
-// Deprecated: Could be removed due to the refactor that lead to usage of standalone uint8 as the RGB representation
-func ColorToRgba(c color.Color) color.RGBA {
-	if rgba, ok := c.(color.RGBA); ok {
-		return rgba
-	}
-
-	r32, g32, b32, a32 := c.RGBA()
-	return color.RGBA{
-		R: uint8(r32 >> 8),
-		G: uint8(g32 >> 8),
-		B: uint8(b32 >> 8),
-		A: uint8(a32 >> 8),
 	}
 }
 

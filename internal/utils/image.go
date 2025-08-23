@@ -4,14 +4,26 @@ import (
 	"image"
 )
 
-func Otsu(i image.Image) float64 {
-	histogram := [256]int{}
+func Otsu(i image.RGBA) float64 {
+	var (
+		histogram [256]int = [256]int{}
+		width     int      = i.Bounds().Dx()
+		offset    int
+		r, g, b   byte
+		gsf       float64
+		gs        int
+	)
+
 	for y := 0; y < i.Bounds().Dy(); y += 1 {
 		for x := 0; x < i.Bounds().Dx(); x += 1 {
-			// TODO: Improve the implementation to make it RGB dedicated
-			c := ColorToRgba(i.At(x, y))
-			gsf := ColorToGrayscale(c.R, c.G, c.B)
-			gs := int(gsf * 255.0)
+			offset = 4*y*width + 4*x
+
+			r = i.Pix[offset+0]
+			g = i.Pix[offset+1]
+			b = i.Pix[offset+2]
+
+			gsf = ColorToGrayscale(r, g, b)
+			gs = int(gsf * 255.0)
 
 			histogram[gs] += 1
 		}

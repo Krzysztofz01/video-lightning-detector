@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/pterm/pterm"
+
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 )
 
 // TODO: Implement Printer and PrinterConfig unit test
@@ -91,7 +92,7 @@ func (p *printer) Progress(msg string) (finalize func()) {
 
 	if p.Config.ParsableMode {
 		p.Warning("Progress printing not supported in parsable mode")
-		return
+		return func() {}
 	}
 
 	spinner, err := pterm.DefaultSpinner.
@@ -117,7 +118,7 @@ func (p *printer) ProgressSteps(msg string, steps int) (step func(), finalize fu
 
 	if p.Config.ParsableMode {
 		p.Warning("Step progress printing not supported in parsable mode")
-		return
+		return func() {}, func() {}
 	}
 
 	progress, err := pterm.DefaultProgressbar.

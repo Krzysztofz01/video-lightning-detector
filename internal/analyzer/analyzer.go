@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"io"
@@ -22,7 +23,7 @@ type Analyzer interface {
 	// Perform the analysis of the video frames. Depending on the options, this function will perform
 	// the analysis or import the result of the previous analysis with a fallback to a standard analysis.
 	// Depending on the options the frames analysis will be exported for future usage.
-	GetFrames() (frame.FrameCollection, error)
+	GetFrames(ctx context.Context) (frame.FrameCollection, error)
 }
 
 type analyzer struct {
@@ -32,7 +33,7 @@ type analyzer struct {
 	Printer        printer.Printer
 }
 
-func (analyzer *analyzer) GetFrames() (frame.FrameCollection, error) {
+func (analyzer *analyzer) GetFrames(ctx context.Context) (frame.FrameCollection, error) {
 	var (
 		frames      frame.FrameCollection
 		preanalyzed bool
@@ -55,7 +56,7 @@ func (analyzer *analyzer) GetFrames() (frame.FrameCollection, error) {
 		analyzer.Printer.Warning("No exported pre-analzyed frames JSON file found. Fallback to frames analysis.")
 	}
 
-	if frames, err = analyzer.PerformFramesAnalysis(); err != nil {
+	if frames, err = analyzer.PerformFramesAnalysis(ctx); err != nil {
 		return nil, fmt.Errorf("analyzer: failed to perform the frames analysis: %w", err)
 	}
 
@@ -70,7 +71,7 @@ func (analyzer *analyzer) GetFrames() (frame.FrameCollection, error) {
 
 // Helper function used to iterate over the video frames in order to generate a collection of frames instances containing
 // processed values about given frames and neighbouring frames relations.
-func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error) {
+func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.FrameCollection, error) {
 	videoAnalysisTime := time.Now()
 	analyzer.Printer.Debug("Starting the video analysis stage.")
 
@@ -117,7 +118,15 @@ func (analyzer *analyzer) PerformFramesAnalysis() (frame.FrameCollection, error)
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
+videoRead:
 	for {
+		select {
+		case <-ctx.Done():
+			analyzer.Printer.Info("Stopping the video analysis stage")
+			break videoRead
+		default:
+		}
+
 		if err := video.Read(); err == io.EOF {
 			break
 		} else if err != nil {
