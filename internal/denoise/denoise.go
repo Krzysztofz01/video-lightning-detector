@@ -5,12 +5,15 @@ import (
 	"image"
 	"image/draw"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/esimov/stackblur-go"
+
+	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 )
 
 // TODO: Research and implement bilateral filter
 
+// Denoise the src image using the specified denoise algorithm (blurs and low-pass filters) and store the result to the dst image pointer.
+// This function is not thread-safe.
 func Denoise(src image.Image, dst *image.RGBA, a options.DenoiseAlgorithm) error {
 	if src == nil {
 		return fmt.Errorf("denoise: the source image reference is nil")
@@ -39,22 +42,23 @@ func Denoise(src image.Image, dst *image.RGBA, a options.DenoiseAlgorithm) error
 }
 
 func noDenoise(src image.Image, dst *image.RGBA) error {
-	srcRGBA := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
-	draw.Draw(srcRGBA, srcRGBA.Bounds(), src, src.Bounds().Min, draw.Src)
+	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Src)
 
-	copy(dst.Pix, srcRGBA.Pix)
 	return nil
 }
 
+var dstNrgbaBuffer *image.NRGBA = nil
+
 func stackBlurDenoise(src image.Image, dst *image.RGBA, radius int) error {
-	imgBlur, err := stackblur.Process(src, uint32(radius))
-	if err != nil {
-		return fmt.Errorf("utils: external image bluring utility failed: %w", err)
+	if dstNrgbaBuffer == nil || dstNrgbaBuffer.Bounds() != dst.Bounds() {
+		dstNrgbaBuffer = image.NewNRGBA(dst.Bounds())
 	}
 
-	imgBlurRgba := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
-	draw.Draw(imgBlurRgba, imgBlurRgba.Bounds(), imgBlur, imgBlur.Bounds().Min, draw.Src)
+	if err := stackblur.Process(dstNrgbaBuffer, src, uint32(radius)); err != nil {
+		return fmt.Errorf("denoise: external image bluring utility failed: %w", err)
+	}
 
-	copy(dst.Pix, imgBlurRgba.Pix)
+	draw.Draw(dst, dst.Bounds(), dstNrgbaBuffer, dstNrgbaBuffer.Bounds().Min, draw.Src)
+
 	return nil
 }
