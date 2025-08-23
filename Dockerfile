@@ -15,7 +15,7 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-COPY --from=build /vld/bin/LICENSE /vld/bin/NOTICES /license
-COPY --from=build /vld/bin/vld /usr/local/bin
+COPY --from=build /vld/bin /vld
+RUN ln -s /vld/vld /usr/local/bin/vld
 WORKDIR /vld
 CMD ["vld"]

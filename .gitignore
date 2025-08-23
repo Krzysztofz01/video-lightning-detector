@@ -38,3 +38,6 @@ coverage.out
 *.prof
 cpu-profile.svg
 mem-profile.svg
+
+# JetBrains
+.idea
