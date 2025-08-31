@@ -35,7 +35,7 @@ cd video-lightning-detector
 task build
 ```
 
-## Self‑contained setup (no system Go/ffmpeg needed)
+## Manuall self‑contained setup (no Task and system Go/ffmpeg needed)
 The steps below reproduce exactly how this fork was prepared and tested locally: clone via SSH, install a project‑local Go toolchain and ffmpeg binaries inside the repo, build the binary, and run the detector.
 
 1) Clone via SSH
