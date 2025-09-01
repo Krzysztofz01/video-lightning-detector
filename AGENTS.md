@@ -37,3 +37,9 @@ When opening a new terminal after a restart:
 
 ## Security & Configuration Tips
 - Ensure `ffmpeg`/`ffprobe` resolve from `.tooling/` via `env.sh`. Prefer `-s` to downscale large videos and `-n` to denoise when noise causes false positives.
+
+## Workflow Quick Reference
+- Branches: `main` (protected, releasable), `next` (integration), `feature/<scope>`, `spike/<topic>`, `codex/<topic>`.
+- PRs: small, squash merge, title uses Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). Target `next` for large refactors; `main` for safe fixes.
+- CI (expected): `go fmt -l` clean, `go vet`, build, `go test -race -coverprofile`. ffmpeg must be available.
+- Samples: prefer `resources/samples/`; keep files small. For quick checks, see README “Daily Use → Quick test using bundled samples”.
