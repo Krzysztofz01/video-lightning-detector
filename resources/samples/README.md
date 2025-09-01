@@ -7,15 +7,14 @@ This folder contains small sample videos used for testing and demonstrations of 
 - CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
 
 ## Contributor Workflow (sanitizing samples)
-When preparing new samples, remove metadata and audio before adding files here.
+When preparing new samples, remove sensitive metadata and optionally also audio before adding files here.
 
 1) Strip camera/GPS metadata on Windows using ExifTool:
 ```
-"exiftool(-k).exe" -r -P -overwrite_original -ext mp4 \
-  -gps:all= -xmp:geotag= -keys:location*= -quicktime:location*= \
-  -keys:gps*= -quicktime:gps*= -make= -model= -quicktime:make= -quicktime:model= \
-  "\path\to\videos\"
+"exiftool(-k).exe" -r -P -overwrite_original -ext mp4 -UserData:GPSCoordinates= -Keys:AndroidModel= -Keys:AndroidMake= -Composite:GPSLatitude= -Composite:GPSLongitude= -Composite:GPSPosition= "\path\to\videos\"
 ```
+Note: This worked for me, you may need to modify it depending on what metadata you need to remove.
+
 
 2) Remove audio track in WSL with ffmpeg (keeps video stream as-is):
 ```
@@ -26,9 +25,3 @@ for f in *.mp4; do ffmpeg -i "$f" -c copy -an "noaudio_$f"; done
 
 ## Guidelines
 - Keep files reasonably small to avoid bloating the repo; consider short clips or downscaled resolution.
-- Preferred format: `.mp4` (H.264). Filenames may include spaces; quote paths in scripts.
-- Add a brief one‑line description per file below.
-
-## Index
-- sample 1.mp4 —
-- sample 2.mp4 —
