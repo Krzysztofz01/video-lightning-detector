@@ -20,22 +20,14 @@ This project is a CLI tool that allows to analyze video recordings in order to d
 We can enter the appropriate threshold values for the above parameters to fine-tune the detection, or we can let the program decide itself (based on all the collected data) which threshold values will be appropriate. The auto-detection system uses descriptive statistics and methods such as moving average to determine the threshold values. For a broader analysis of the recordings, it is possible to export all parameters in CSV and JSON format, which allows graph generation and further work with the data. In order to increase the precision of the detections, we can also apply de-noising, and to increase performance, we can apply frame scaling.
 
 # Requirements and installation
-Required software:
-- **[git](https://git-scm.com/)** - Used to download the source code from the repository.
-- **[task](https://taskfile.dev/)** - Used as the main build tool. (This one is optional, the program can be built "manually")
-- **[go (version: 1.20+)](https://go.dev/)** - Used to compile the source code locally.
-- **[ffmpeg](https://ffmpeg.org/)** - Used by the program for frame extraction.
+Required software for the manual, self‑contained workflow:
+- **git** – clone the repository.
+- **curl**, **tar** – to fetch and unpack local toolchains.
+- No global Go/ffmpeg required; they are installed inside the repo.
 
-Installation (Linux, Windows and MacOS):
-```sh
-git clone https://github.com/Krzysztofz01/video-lightning-detector
+If you prefer system tools, the project also supports them, but the manual flow below is the primary path.
 
-cd video-lightning-detector
-
-task build
-```
-
-## Manuall self‑contained setup (no Task and system Go/ffmpeg needed)
+## Manual self‑contained setup (no system Go/ffmpeg needed)
 The steps below reproduce exactly how this fork was prepared and tested locally: clone via SSH, install a project‑local Go toolchain and ffmpeg binaries inside the repo, build the binary, and run the detector.
 
 1) Clone via SSH
@@ -104,6 +96,32 @@ go build -v -o bin/video-lightning-detector .
 Notes:
 - The self‑contained tooling keeps your system clean; remove `.tooling/` to discard it.
 
+## Daily Use (after restart)
+When opening a fresh terminal to run detections:
+```sh
+cd video-lightning-detector
+# 1) Activate local toolchains (Go + ffmpeg)
+source ./env.sh
+which go && which ffmpeg && which ffprobe  # quick sanity check
+
+# 2) Run the detector (binary already built in ./bin/)
+./bin/video-lightning-detector \
+  -i path/to/video.mp4 \
+  -o ./runs/session-001 \
+  -a -s 0.4 [-n] [-e -j -r] [-v]
+
+# If bin/ does not contain the binary yet (first run after pulling changes):
+go build -v -o bin/video-lightning-detector .
+```
+Outputs (inside your `-o` directory):
+- Exported frames: `frame-<n>.png`.
+- Reports: `frames-report.{csv,json}`, `statistics-report.{csv,json}`.
+- Optional chart: `chart-report.html`.
+
+Tips:
+- Use `-s <0..1]` to trade quality for speed; `0.1–0.5` is typical.
+- Add `-n` to denoise noisy footage and reduce false positives.
+
 # Usage
 All available flags/commands:
 ```sh
@@ -132,6 +150,48 @@ Flags:
 Running the detector with default values and auto-threshold calculation. The most automated apporach.
 ```sh
 video-lightning-detector -i ~/path/to/video.mp4 -o ~/output/directory/ -a
+```
+
+## Development Pipeline
+For editing and rebuilding locally:
+```sh
+cd video-lightning-detector
+source ./env.sh                     # enable local Go and ffmpeg
+
+# 1) Edit code under internal/ and cmd/
+
+# 2) Format, vet, and test
+go fmt ./...
+go vet ./...                        # optional but recommended
+go test ./...
+
+# 3) Maintain dependencies if imports changed
+go mod tidy
+
+# 4) Build the binary
+go build -v -o bin/video-lightning-detector .
+
+# 5) Run a test scenario
+./bin/video-lightning-detector -i path/to/video.mp4 -o ./runs/dev -a -s 0.4
+```
+
+Profiling and coverage (optional):
+```sh
+# Bench with CPU/MEM profiles (benchmark reads args from VLD_CLI_ARGS)
+export VLD_CLI_ARGS='-i path/to/video.mp4 -o ./runs/bench -a -s 0.4'
+go test -v -run ^$ -bench . -cpuprofile cpu.prof -memprofile mem.prof
+
+# Inspect profiles
+go tool pprof -text cpu.prof
+go tool pprof -text mem.prof
+
+# Generate SVGs (requires Graphviz-enabled pprof build)
+go tool pprof -svg -output cpu-profile.svg cpu.prof
+go tool pprof -svg -output mem-profile.svg mem.prof
+
+# Coverage HTML report
+go test -coverprofile coverage.out ./...
+go tool cover -html coverage.out
 ```
 
 The detection takes ages to complete? Running the detector with frame scaling to improve performance.
