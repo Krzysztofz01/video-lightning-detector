@@ -33,10 +33,10 @@ Purpose: keep `main` always releasable, iterate fast on branches, and make chang
 - [x] Document workflow in repo
 - [ ] Protect `main` branch (GitHub settings)
 - [ ] Create/protect `next` integration branch
-- [ ] Add CI workflow (lint/vet/build/test/coverage)
-- [ ] Add PR template (checklist + risk/rollback)
-- [ ] Add CODEOWNERS
-- [ ] Enable Dependabot (gomod, actions)
+- [x] Add CI workflow (lint/vet/build/test/coverage)
+- [x] Add PR template (checklist + risk/rollback)
+- [x] Add CODEOWNERS
+- [x] Enable Dependabot (gomod, actions)
 - [ ] Add CI smoke test using a sample video
 - [ ] Add release automation (tags → release, optional GoReleaser)
 - [ ] Add bench workflow (manual trigger)
