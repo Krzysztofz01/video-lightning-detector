@@ -29,6 +29,7 @@ bin
 *.png
 !resources/*.png
 test/
+runs/
 
 # Coverage file
 coverage.out

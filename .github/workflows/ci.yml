@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [ main, next ]
@@ -8,6 +9,9 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +25,31 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'cmd/**'
+              - 'internal/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - 'resources/samples/**'
+
+      - name: Summary
+        run: |
+          echo "code changes: ${{ steps.changes.outputs.code }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.changes.outputs.code }}" != "true" ]; then
+            echo "Docs-only or non-code change detected; skipping heavy steps." >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Format check
+        if: steps.changes.outputs.code == 'true'
         run: |
           diff_files=$(go fmt ./...)
           if [ -n "$diff_files" ]; then
@@ -29,20 +57,24 @@ jobs:
           fi
 
       - name: Vet
+        if: steps.changes.outputs.code == 'true'
         run: go vet ./...
 
       - name: Build
+        if: steps.changes.outputs.code == 'true'
         run: go build ./...
 
       - name: Test
+        if: steps.changes.outputs.code == 'true'
         run: go test -race -coverprofile coverage.out ./...
 
       - name: Coverage HTML
+        if: steps.changes.outputs.code == 'true'
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
+        if: steps.changes.outputs.code == 'true'
         with:
           name: coverage
           path: coverage.html
-
