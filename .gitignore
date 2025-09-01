@@ -38,3 +38,7 @@ coverage.out
 *.prof
 cpu-profile.svg
 mem-profile.svg
+
+# Local tooling (self-contained workflow)
+.tooling/
+env.sh
