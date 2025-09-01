@@ -28,7 +28,6 @@ bin
 *.jpeg
 *.png
 !resources/*.png
-*.mp4
 test/
 
 # Coverage file
