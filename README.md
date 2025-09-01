@@ -113,6 +113,12 @@ which go && which ffmpeg && which ffprobe  # quick sanity check
 # If bin/ does not contain the binary yet (first run after pulling changes):
 go build -v -o bin/video-lightning-detector .
 ```
+Quick test using bundled samples:
+```sh
+# Paths with spaces need quoting
+./bin/video-lightning-detector -i "resources/samples/sample 1.mp4" -o ./runs/sample-1 -a -s 0.4
+./bin/video-lightning-detector -i "resources/samples/sample 2.mp4" -o ./runs/sample-2 -a -s 0.4
+```
 Outputs (inside your `-o` directory):
 - Exported frames: `frame-<n>.png`.
 - Reports: `frames-report.{csv,json}`, `statistics-report.{csv,json}`.
