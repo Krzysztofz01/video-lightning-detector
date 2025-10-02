@@ -50,8 +50,6 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 
 	var (
 		movingMeanResolution int                                         = int(detector.Options.MovingMeanResolution)
-		plotResolution       int                                         = detector.Options.FrameDetectionPlotResolution
-		plotThreshold        float64                                     = detector.Options.FrameDetectionPlotThreshold
 		analyzer             analyzer.StreamAnalyzer                     = analyzer.NewStreamAnalyzer(inputVideoStreamUrl, detector.Options, detector.Printer)
 		stats                statistics.IncrementalDescriptiveStatistics = statistics.NewIncrementalDescriptiveStatistics(movingMeanResolution)
 		detectionBuffer      ContinuousDetectionBuffer                   = NewContinuousDetectionBuffer(detector.Options, AboveMovingMeanAllWeights)
@@ -66,6 +64,7 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 		detectionFrameImage     *image.RGBA
 		windowStatistics        statistics.DescriptiveStatisticsEntry
 		err                     error
+		frameStrikeDetector     FrameStrikeDetector
 	)
 
 readStream:
@@ -81,6 +80,18 @@ readStream:
 			break
 		} else if err != nil {
 			return fmt.Errorf("detector: video analysis frame access failed: %w", err)
+		}
+
+		// NOTE: Lazy initialization of frame strike detector due to the requirement of analyzer initialization running first
+		if frameStrikeDetector == nil {
+			fullFrameWidth, fullFrameHeight, err := analyzer.PeekFrameImageDimensions(true)
+			if err != nil {
+				return fmt.Errorf("detector: failed to access the full frame dimensions via analyzer: %w", err)
+			}
+
+			if frameStrikeDetector, err = CreateFrameStrikeDetector(fullFrameWidth, fullFrameHeight, detector.Options); err != nil {
+				return fmt.Errorf("detector: failed to create the frame strike detector: %w", err)
+			}
 		}
 
 		if currentFrame, currentFrameTimestamp, err = analyzer.PeekFrame(0); err != nil {
@@ -122,7 +133,7 @@ readStream:
 				return fmt.Errorf("detector: failed to access the detection frame image: %w", err)
 			}
 
-			detectionPlot, err := getFrameStrikePlot(detectionFrameImage, plotResolution, plotThreshold)
+			detectionPlot, err := frameStrikeDetector.GetDetectionPlot(detectionFrameImage)
 			if err != nil {
 				return fmt.Errorf("detector: failed to process the frame strike detection plot: %w", err)
 			}

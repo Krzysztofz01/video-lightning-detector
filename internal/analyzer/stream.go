@@ -31,6 +31,10 @@ type StreamAnalyzer interface {
 	// Access a latest frame image specified by the FIFO index
 	PeekFrameImage(index int) (*image.RGBA, error)
 
+	// Access the bounds of the underlying video stream frame images. Control whether to
+	// access the input or output (bbox) dimensions via the boolean argument
+	PeekFrameImageDimensions(input bool) (int, int, error)
+
 	// Read the count of read frames
 	FrameCount() int
 
@@ -51,6 +55,10 @@ type streamAnalyzer struct {
 }
 
 func (analyzer *streamAnalyzer) PeekFrame(index int) (*frame.Frame, time.Time, error) {
+	if !analyzer.IsInitialized {
+		return nil, time.Time{}, fmt.Errorf("analyzer: can not peek frame because the analyzer has not been initialized")
+	}
+
 	if f, err := analyzer.FrameBuffer.GetHead(index); err != nil {
 		return nil, time.Time{}, err
 	} else {
@@ -59,7 +67,26 @@ func (analyzer *streamAnalyzer) PeekFrame(index int) (*frame.Frame, time.Time, e
 }
 
 func (analyzer *streamAnalyzer) PeekFrameImage(index int) (*image.RGBA, error) {
+	if !analyzer.IsInitialized {
+		return nil, fmt.Errorf("analyzer: can not peek frame because the analyzer has not been initialzied")
+	}
+
 	return analyzer.FrameImageBuffer.GetHead(index)
+}
+
+func (analyzer *streamAnalyzer) PeekFrameImageDimensions(input bool) (int, int, error) {
+	if !analyzer.IsInitialized {
+		return 0, 0, fmt.Errorf("analyzer: can not peek frame image bounds because the analyzer has not been initialzied")
+	}
+
+	var w, h int
+	if input {
+		w, h = analyzer.VideoStream.GetInputDimensions()
+	} else {
+		w, h = analyzer.VideoStream.GetOutputDimensions()
+	}
+
+	return w, h, nil
 }
 
 func (analyzer *streamAnalyzer) Initialize() error {
