@@ -1,8 +1,22 @@
 package utils
 
 import (
+	"fmt"
 	"image"
+	"image/draw"
 )
+
+// TODO: Add tests
+func CopyAsRgba(i image.Image) (*image.RGBA, error) {
+	if i == nil {
+		return nil, fmt.Errorf("utils: invalid image reference provided")
+	}
+
+	rgba := image.NewRGBA(i.Bounds())
+	draw.Draw(rgba, rgba.Bounds(), i, i.Bounds().Min, draw.Src)
+
+	return rgba, nil
+}
 
 func Otsu(i image.RGBA) float64 {
 	var (

@@ -41,6 +41,7 @@ type Printer interface {
 	ProgressSteps(msg string, steps int) (step func(), finalize func())
 	Table(data [][]string)
 	WriteParsable(data any)
+	WriteRaw(format string, args ...any)
 	IsLogLevel(l options.LogLevel) bool
 }
 
@@ -185,6 +186,13 @@ func (p *printer) WriteParsable(data any) {
 
 	if _, err := fmt.Fprintln(p.Config.OutStream, string(dataJson)); err != nil {
 		panic(fmt.Errorf("printer: failed to write parsable to out stream"))
+	}
+}
+
+func (p *printer) WriteRaw(format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	if _, err := fmt.Fprint(p.Config.OutStream, message); err != nil {
+		panic(fmt.Errorf("printer: failed to write raw to out stream: %w", err))
 	}
 }
 

@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   CONTAINER_TOOL: podman # [ docker, podman ]
+  DEVELOPER_MODE: true
   VERSION_TAG:
     sh: git symbolic-ref -q --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "$VLD_VERSION"
 
@@ -10,10 +11,11 @@ tasks:
     desc: Build the video-ligtning-detector for the current system (Windows or Linux) for the AMD64 architecture without debug symbols.
     vars:
       LDFLAG_VERSION: github.com/Krzysztofz01/video-lightning-detector/cmd.Version={{.VERSION_TAG}}
+      LDFLAG_DEVELOPER_MODE: github.com/Krzysztofz01/video-lightning-detector/cmd.DeveloperMode={{.DEVELOPER_MODE}}
     cmds:
-      - cmd: GOOS=windows GOARCH=amd64 go build -v -trimpath -ldflags="-s -w -X {{.LDFLAG_VERSION}}" -o bin/vld.exe .
+      - cmd: GOOS=windows GOARCH=amd64 go build -v -trimpath -ldflags="-s -w -X {{.LDFLAG_VERSION}} -X {{.LDFLAG_DEVELOPER_MODE}}" -o bin/vld.exe .
         platforms: [ windows ]
-      - cmd: GOOS=linux GOARCH=amd64 go build -v -trimpath -ldflags="-s -w -X {{.LDFLAG_VERSION}}" -o bin/vld .
+      - cmd: GOOS=linux GOARCH=amd64 go build -v -trimpath -ldflags="-s -w -X {{.LDFLAG_VERSION}} -X {{.LDFLAG_DEVELOPER_MODE}}" -o bin/vld .
         platforms: [ linux ]
       - cmd: cp LICENSE bin/LICENSE
       - cmd: cp NOTICES bin/NOTICES

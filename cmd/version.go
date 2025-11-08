@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/video"
-	"github.com/spf13/cobra"
 )
-
-var Version string
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
@@ -19,7 +19,14 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version numbers.",
 	Long:  "Print the version numbers of VLD and dependency binaries.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Fprintf(os.Stdout, "video-lightning-detector version %s Copyright (c) Krzysztof Zoń\n", Version)
+		version := strings.Builder{}
+		version.WriteString(Version)
+
+		if DeveloperMode == "true" {
+			version.WriteString(" [Developer Mode]")
+		}
+
+		fmt.Fprintf(os.Stdout, "video-lightning-detector version %s Copyright (c) Krzysztof Zoń\n", version.String())
 
 		versions, err := video.GetBinariesVersions()
 		if err != nil {

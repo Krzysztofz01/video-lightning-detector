@@ -12,6 +12,11 @@ import (
 )
 
 var (
+	Version       string
+	DeveloperMode string
+)
+
+var (
 	LogLevel options.LogLevel
 )
 
