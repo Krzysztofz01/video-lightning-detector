@@ -1,14 +1,34 @@
 version: '3'
 
+vars:
+  CONTAINER_TOOL: podman # [ docker, podman ]
+  DEVELOPER_MODE: true
+  VERSION_TAG:
+    sh: git symbolic-ref -q --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo "$VLD_VERSION"
+
 tasks:
   build:
-    desc: Build the video-ligtning-detector for the current system and architecture with debug symbols included.
+    desc: Build the video-ligtning-detector for the current system (Windows or Linux) for the AMD64 architecture without debug symbols.
+    vars:
+      LDFLAG_VERSION: github.com/Krzysztofz01/video-lightning-detector/cmd.Version={{.VERSION_TAG}}
+      LDFLAG_DEVELOPER_MODE: github.com/Krzysztofz01/video-lightning-detector/cmd.DeveloperMode={{.DEVELOPER_MODE}}
     cmds:
-      - cmd: go build -v -o bin/video-lightning-detector.exe .
+      - cmd: GOOS=windows GOARCH=amd64 go build -v -trimpath -ldflags="-s -w -X {{.LDFLAG_VERSION}} -X {{.LDFLAG_DEVELOPER_MODE}}" -o bin/vld.exe .
         platforms: [ windows ]
-      - cmd: go build -v -o bin/video-lightning-detector .
-        platforms: [ linux, darwin ]
-  
+      - cmd: GOOS=linux GOARCH=amd64 go build -v -trimpath -ldflags="-s -w -X {{.LDFLAG_VERSION}} -X {{.LDFLAG_DEVELOPER_MODE}}" -o bin/vld .
+        platforms: [ linux ]
+      - cmd: cp LICENSE bin/LICENSE
+      - cmd: cp NOTICES bin/NOTICES
+
+  build:image:
+    desc: Build the video-lightning-detector container image with the current version and latest tag.
+    vars:
+      SPECIFIC_TAG: vld:{{.VERSION_TAG}}
+      LATEST_TAG: vld:latest
+    cmds:
+      - cmd: "{{.CONTAINER_TOOL}} build --tag {{.SPECIFIC_TAG}} --build-arg VERSION={{.VERSION_TAG}} ."
+      - cmd: "{{.CONTAINER_TOOL}} tag {{.SPECIFIC_TAG}} {{.LATEST_TAG}}"
+
   test:
     desc: Run tests for all packages.
     cmds:
@@ -22,24 +42,17 @@ tasks:
       - go test -coverprofile {{.COVERAGE}} ./...
       - go tool cover -html {{.COVERAGE}}
 
-  profile:
-    desc: Run a profiling test with given arguments (task profile --args) and display the pprof tool results.
-    vars:
-      CPU_PROFILE: cpu.prof
-      MEM_PROFILE: mem.prof
+  check:
+    desc: Print the version of the Golang compiler and installed Ffmpeg tools.
     cmds:
-      - VLD_CLI_ARGS="{{.CLI_ARGS}}" go test -v -cpuprofile {{.CPU_PROFILE}} -memprofile {{.MEM_PROFILE}} -run ^$ -bench .
-      - go tool pprof -text {{.CPU_PROFILE}}
-      - go tool pprof -text {{.MEM_PROFILE}}
+       - go version
+       - ffmpeg -hide_banner -version | head -n 1
+       - ffprobe -hide_banner -version | head -n 1
 
-  profile:graph:
-    desc: Run a profiling test with given arguments (task profile:graph -- <args>) and create a visualization using Graphviz.
+  todo:
+    desc: Prints the TODOs and FIXMEs in the project source code.
     vars:
-      CPU_PROFILE: cpu.prof
-      MEM_PROFILE: mem.prof
-      CPU_PROFILE_GRAPH: cpu-profile.svg
-      MEM_PROFILE_GRAPH: mem-profile.svg
+      EXCLUDE: --exclude-dir=bin --exclude-dir=.git --exclude-dir=.vscode --exclude=Taskfile.yml
     cmds:
-      - VLD_CLI_ARGS="{{.CLI_ARGS}}" go test -v -cpuprofile {{.CPU_PROFILE}} -memprofile {{.MEM_PROFILE}} -run ^$ -bench .
-      - go tool pprof -svg -output {{.CPU_PROFILE_GRAPH}} {{.CPU_PROFILE}}
-      - go tool pprof -svg -output {{.MEM_PROFILE_GRAPH}} {{.MEM_PROFILE}}
+      - cmd: grep -rEnI --color=always {{.EXCLUDE}} 'TODO|FIXME' . | sed -E 's/(\s+|\/\/)+/ /'
+        platforms: [ linux ]

@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"image/color"
 	"math"
 )
 
@@ -19,33 +18,16 @@ func init() {
 	}
 }
 
-// Convert the provided color represented by the color.Color interface to the color.RGBA struct instance.
-func ColorToRgba(c color.Color) color.RGBA {
-	if rgba, ok := c.(color.RGBA); ok {
-		return rgba
-	}
-
-	r32, g32, b32, a32 := c.RGBA()
-	return color.RGBA{
-		R: uint8(r32 >> 8),
-		G: uint8(g32 >> 8),
-		B: uint8(b32 >> 8),
-		A: uint8(a32 >> 8),
-	}
+// Convert a RGB color to grayscale that will be represented as a value from zero to one.
+func ColorToGrayscale(r, g, b uint8) float64 {
+	return ((float64(r) * 0.299) + (float64(g) * 0.587) + (float64(b) * 0.114)) / 255.0
 }
 
-// Convert a color to grayscale represented as a value from zero to one.
-func ColorToGrayscale(c color.Color) float64 {
-	rgba := ColorToRgba(c)
-	return ((float64(rgba.R) * 0.299) + (float64(rgba.G) * 0.587) + (float64(rgba.B) * 0.114)) / 255.0
-}
-
-// Calculate the brightness of the color represented as a value from zero to one.
-func GetColorBrightness(c color.Color) float64 {
-	rgba := ColorToRgba(c)
-	lR := linearRgbComponentLookup[rgba.R]
-	lG := linearRgbComponentLookup[rgba.G]
-	lB := linearRgbComponentLookup[rgba.B]
+// Calculate the brightness of the RGB color that will be represented as a value from zero to one.
+func GetColorBrightness(r, g, b uint8) float64 {
+	lR := linearRgbComponentLookup[r]
+	lG := linearRgbComponentLookup[g]
+	lB := linearRgbComponentLookup[b]
 
 	luminance := 0.2126*lR + 0.7152*lG + 0.0722*lB
 	if luminance <= 0.008856 {
@@ -55,25 +37,31 @@ func GetColorBrightness(c color.Color) float64 {
 	}
 }
 
-// Calculate the difference between two colors represented as a value from zero to one using the mean of RGB components difference.
-func GetColorDifference(a, b color.Color) float64 {
-	aRgba := ColorToRgba(a)
-	bRgba := ColorToRgba(b)
+func luminanceRangeCubeRoot(x float64) float64 {
+	reg := (-0.358955950652834 * x * x) + (0.934309346877746 * x) + 0.414814427166639
 
-	rDiff := math.Abs(float64(aRgba.R) - float64(bRgba.R))
-	gDiff := math.Abs(float64(aRgba.G) - float64(bRgba.G))
-	bDiff := math.Abs(float64(aRgba.B) - float64(bRgba.B))
+	for i := 0; i < 3; i += 1 {
+		regp2 := reg * reg
+		reg = reg - ((regp2*reg)-x)/(3*regp2)
+	}
+
+	return reg
+}
+
+// Calculate the difference between two RGB colors that will be represented as a value from zero to one using the mean of RGB components difference.
+func GetColorDifference(aR, aG, aB, bR, bG, bB uint8) float64 {
+	rDiff := math.Abs(float64(aR) - float64(bR))
+	gDiff := math.Abs(float64(aG) - float64(bG))
+	bDiff := math.Abs(float64(aB) - float64(bB))
 
 	return (rDiff + gDiff + bDiff) / (255.0 * 3.0)
 }
 
-// Perform a binary threshold on a given color with specfied cutoff threshold and returna black or white color.
-func BinaryThreshold(c color.Color, t float64) color.Color {
-	grayscale := ColorToGrayscale(c)
-
-	if grayscale < t {
-		return color.Black
+// Perform a binary threshold on a given RGB color with specfied cutoff threshold and return a uint8 represented black or white color.
+func BinaryThreshold(r, g, b uint8, t float64) uint8 {
+	if ColorToGrayscale(r, g, b) < t {
+		return 0x00
 	} else {
-		return color.White
+		return 0xff
 	}
 }

@@ -1,0 +1,14 @@
+# Ignore everything
+*
+
+# Allow source code and build related files
+!*.go
+!cmd/
+!internal/
+!go.mod
+!go.sum
+!.dockerignore
+!.Dockerfile
+!LICENSE
+!NOTICES
+!Taskfile.yml

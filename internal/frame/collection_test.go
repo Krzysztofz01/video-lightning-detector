@@ -1,7 +1,6 @@
 package frame
 
 import (
-	"bytes"
 	"image/color"
 	"testing"
 
@@ -9,126 +8,112 @@ import (
 )
 
 func TestFramesCollectionShouldCreate(t *testing.T) {
-	collection := CreateNewFramesCollection(5)
-
+	collection := NewFrameCollection(5)
 	assert.NotNil(t, collection)
+
+	assert.Panics(t, func() {
+		NewFrameCollection(-1)
+	})
+
+	assert.Panics(t, func() {
+		NewFrameCollection(0)
+	})
 }
 
-func TestFramesCollectionShouldAppendFrame(t *testing.T) {
-	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1)
-	collection := CreateNewFramesCollection(5)
+func TestFramesCollectionShouldPushValidFramesAndAccessIn(t *testing.T) {
+	cases := []struct {
+		Capacity int
+		Count    int
+	}{
+		{1, 0},
+		{1, 1},
+		{1, 2},
+		{5, 4},
+		{5, 5},
+		{5, 10},
+	}
 
-	err := collection.Append(frame)
+	for _, c := range cases {
+		frames := make([]*Frame, 0, c.Count)
+		collection := NewFrameCollection(c.Capacity)
 
+		for index := 0; index < c.Count; index += 1 {
+			frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), index+1, BinaryThresholdParam)
+			err := collection.Push(frame)
+			assert.Nil(t, err)
+
+			frames = append(frames, frame)
+		}
+
+		collection.Lock()
+
+		assert.Equal(t, collection.Count(), c.Count)
+		a := collection.GetAll()
+		assert.Equal(t, a, frames)
+		for _, frame := range collection.GetAll() {
+			assert.NotNil(t, frame)
+		}
+	}
+}
+
+func TestFramesCollectionShouldNotPushInvalidFrame(t *testing.T) {
+	collection := NewFrameCollection(1)
+
+	// NOTE: nil frame
+	err := collection.Push(nil)
+	assert.NotNil(t, err)
+
+	// NOTE: frame with invalid ordinal number
+	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
+	err = collection.Push(frame)
+	assert.NotNil(t, err)
+
+	frame = CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam)
+	err = collection.Push(frame)
 	assert.Nil(t, err)
-}
 
-func TestFramesCollectionShouldNotAppendNilFrame(t *testing.T) {
-	collection := CreateNewFramesCollection(5)
+	// NOTE: access before lock
+	assert.Panics(t, func() {
+		collection.Count()
+	})
 
-	err := collection.Append(nil)
+	collection.Lock()
 
+	// NOTE: push after lock
+	frame = CreateNewFrame(mockImage(color.White), mockImage(color.White), 2, BinaryThresholdParam)
+	err = collection.Push(frame)
 	assert.NotNil(t, err)
 }
 
-func TestFramesCollectionShouldNotAppendFrameWithSameOrdinalNumber(t *testing.T) {
-	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.White), 2)
-	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.Black), 2)
-	collection := CreateNewFramesCollection(5)
+func TestFramesCollectionShouldCorrectlyHandleAccess(t *testing.T) {
+	collection := NewFrameCollection(1)
 
-	err := collection.Append(frame1)
+	assert.Panics(t, func() {
+		collection.Count()
+	})
+
+	assert.Panics(t, func() {
+		collection.GetAll()
+	})
+
+	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), 1, BinaryThresholdParam)
+	err := collection.Push(frame)
 	assert.Nil(t, err)
 
-	err = collection.Append(frame2)
-	assert.NotNil(t, err)
-}
+	assert.Panics(t, func() {
+		collection.Count()
+	})
 
-func TestFramesCollectionShouldGetFrame(t *testing.T) {
-	frameNumber := 2
-	frame := CreateNewFrame(mockImage(color.White), mockImage(color.White), frameNumber)
-	collection := CreateNewFramesCollection(5)
+	assert.Panics(t, func() {
+		collection.GetAll()
+	})
 
-	err := collection.Append(frame)
-	assert.Nil(t, err)
+	collection.Lock()
 
-	actualFrame, err := collection.Get(frameNumber)
-	assert.Nil(t, err)
-	assert.NotNil(t, actualFrame)
+	frames := collection.GetAll()
+	assert.NotNil(t, frames)
+	assert.Len(t, frames, 1)
 
-	assert.Equal(t, frame, actualFrame)
-}
-
-func TestFramesCollectionShouldNotGetNotExistingFrame(t *testing.T) {
-	collection := CreateNewFramesCollection(5)
-
-	frame, err := collection.Get(3)
-	assert.NotNil(t, err)
-	assert.Nil(t, frame)
-}
-
-func TestFramesCollectionShouldCalculateStatistics(t *testing.T) {
-	frame1 := CreateNewFrame(mockImage(color.White), mockImage(color.Black), 1)
-	frame2 := CreateNewFrame(mockImage(color.Black), mockImage(color.White), 2)
-	collection := CreateNewFramesCollection(5)
-
-	err := collection.Append(frame1)
-	assert.Nil(t, err)
-
-	err = collection.Append(frame2)
-	assert.Nil(t, err)
-
-	statistics := collection.CalculateStatistics(50)
-
-	assert.Equal(t, statistics.BrightnessMean, 0.5)
-	assert.Equal(t, statistics.BrightnessStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BrightnessMax, 1.0)
-	assert.Equal(t, statistics.ColorDifferenceMean, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceMax, 1.0)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMean, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
-
-	cachedStatistics := collection.CalculateStatistics(50)
-
-	assert.Equal(t, cachedStatistics, statistics)
-	assert.Equal(t, statistics.BrightnessMean, 0.5)
-	assert.Equal(t, statistics.BrightnessStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BrightnessMax, 1.0)
-	assert.Equal(t, statistics.ColorDifferenceMean, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.ColorDifferenceMax, 1.0)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMean, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceStandardDeviation, 0.5)
-	assert.Equal(t, statistics.BinaryThresholdDifferenceMax, 1.0)
-}
-
-func TestFramesCollectionShouldExportJsonReport(t *testing.T) {
-	buffer := &bytes.Buffer{}
-	assert.Zero(t, buffer.Len())
-
-	collection := CreateNewFramesCollection(5)
-	assert.NotNil(t, collection)
-
-	collection.Append(CreateNewFrame(mockImage(color.White), mockImage(color.White), 1))
-
-	err := collection.ExportJsonReport(buffer)
-	assert.Nil(t, err)
-
-	assert.NotZero(t, buffer.Len())
-}
-
-func TestFramesCollectionShouldExportCsvReport(t *testing.T) {
-	buffer := &bytes.Buffer{}
-	assert.Zero(t, buffer.Len())
-
-	collection := CreateNewFramesCollection(5)
-	assert.NotNil(t, collection)
-
-	collection.Append(CreateNewFrame(mockImage(color.White), mockImage(color.White), 1))
-
-	err := collection.ExportCsvReport(buffer)
-	assert.Nil(t, err)
-
-	assert.NotZero(t, buffer.Len())
+	count := collection.Count()
+	assert.Equal(t, 1, count)
 }

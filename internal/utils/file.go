@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Create the whole path directory tree and the final file.
@@ -20,6 +22,15 @@ func CreateFileWithTree(path string) (*os.File, error) {
 	}
 
 	return os.Create(path)
+}
+
+// Check if the given path is pointing to a existing file.
+func FileExists(path string) bool {
+	if file, err := os.Stat(path); (err != nil && os.IsNotExist(err)) || file.IsDir() {
+		return false
+	}
+
+	return true
 }
 
 // Create a new png file at the given path and encode the specified image into it.
@@ -48,4 +59,47 @@ func ExportImageAsPng(path string, img image.Image) error {
 	}
 
 	return nil
+}
+
+// TODO: Add tests
+func ImportImageRgba(path string) (*image.RGBA, error) {
+	var (
+		file *os.File
+		img  image.Image
+		err  error
+	)
+
+	file, err = os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("utils: failed to open the target image file: %w", err)
+	}
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png":
+		{
+			if img, err = png.Decode(file); err != nil {
+				return nil, fmt.Errorf("utils: failed to decode png file: %w", err)
+			}
+		}
+	case ".jpg", ".jpeg":
+		{
+			if img, err = jpeg.Decode(file); err != nil {
+				return nil, fmt.Errorf("utils: failed to decode jpeg file: %w", err)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("utils: unsupported image file format")
+	}
+
+	if rgba, err := CopyAsRgba(img); err != nil {
+		return nil, fmt.Errorf("utils: failed to copy image in rgba pixel format: %w", err)
+	} else {
+		return rgba, nil
+	}
 }
