@@ -73,12 +73,6 @@ func init() {
 		DetectorOptions.ExportJsonReport,
 		"Export of reports in JSON format.")
 
-	videoCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.ExportChartReport,
-		"export-chart-report", "r",
-		DetectorOptions.ExportChartReport,
-		"Export of frame statistics as a chart in HTML format.")
-
 	videoCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.FrameScalingFactor,
 		"scaling-factor", "s",

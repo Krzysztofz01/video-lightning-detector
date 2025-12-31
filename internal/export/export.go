@@ -122,28 +122,6 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 		jsonProgressFinalize()
 	}
 
-	if exporter.Options.ExportChartReport {
-		chartProgressFinalize := exporter.Printer.Progress("Exporting chart report")
-		defer chartProgressFinalize()
-
-		path, err := exportFramesChart(
-			exporter.OutputDirPath,
-			fc,
-			ds,
-			detections,
-			exporter.Options.BrightnessDetectionThreshold,
-			exporter.Options.ColorDifferenceDetectionThreshold,
-			exporter.Options.BinaryThresholdDifferenceDetectionThreshold)
-
-		if err != nil {
-			return fmt.Errorf("export: failed to export the frames chart: %w", err)
-		} else {
-			exporter.Printer.Info("Frames chart exported to: %s", path)
-		}
-
-		chartProgressFinalize()
-	}
-
 	exporter.Printer.Info("Export finished. Stage took: %s", time.Since(exportTime))
 	return nil
 }

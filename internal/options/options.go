@@ -13,7 +13,6 @@ type DetectorOptions struct {
 	MovingMeanResolution                        int32
 	ExportCsvReport                             bool
 	ExportJsonReport                            bool
-	ExportChartReport                           bool
 	ExportConfusionMatrix                       bool
 	ConfusionMatrixActualDetectionsExpression   string
 	SkipFramesExport                            bool
@@ -81,7 +80,6 @@ func (options *DetectorOptions) Clone() DetectorOptions {
 		MovingMeanResolution:                        options.MovingMeanResolution,
 		ExportCsvReport:                             options.ExportCsvReport,
 		ExportJsonReport:                            options.ExportJsonReport,
-		ExportChartReport:                           options.ExportChartReport,
 		ExportConfusionMatrix:                       options.ExportConfusionMatrix,
 		ConfusionMatrixActualDetectionsExpression:   options.ConfusionMatrixActualDetectionsExpression,
 		SkipFramesExport:                            options.SkipFramesExport,
@@ -104,7 +102,6 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		MovingMeanResolution:                        50,
 		ExportCsvReport:                             false,
 		ExportJsonReport:                            false,
-		ExportChartReport:                           false,
 		ExportConfusionMatrix:                       false,
 		ConfusionMatrixActualDetectionsExpression:   "",
 		SkipFramesExport:                            false,

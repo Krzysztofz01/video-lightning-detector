@@ -4,7 +4,6 @@ go 1.24
 
 require (
 	github.com/esimov/stackblur-go v1.1.1
-	github.com/go-echarts/go-echarts/v2 v2.3.1
 	github.com/pterm/pterm v0.12.65
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.9.0

@@ -97,7 +97,6 @@ Flags:
       --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14
   -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ stackblur16, stackblur32, none, stackblur8 ] (default none)
       --detection-bounds-expression string                     An expression indicating consecutively the coordinates of the upper left point, width and height of the cutout (bounding box) of the recording to be processed.  Example: 0:0:100:200
-  -r, --export-chart-report                                    Export of frame statistics as a chart in HTML format.
       --export-confusion-matrix                                Value indicating if the frames detection classification confusion matrix should be rendered.
   -e, --export-csv-report                                      Export of reports in CSV format.
   -j, --export-json-report                                     Export of reports in JSON format.

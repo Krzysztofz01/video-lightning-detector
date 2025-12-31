@@ -13,7 +13,3 @@ const (
 	CsvConfusionMatrixReportFilename       string = "confusion-matrix.csv"
 	CsvDetectionThresholdReportFilename    string = "detection-thresholds-report.csv"
 )
-
-const (
-	FramesChartFilename string = "chart-report.html"
-)
