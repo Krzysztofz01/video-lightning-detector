@@ -18,12 +18,19 @@ var (
 	DetectorOptions     options.DetectorOptions = options.GetDefaultDetectorOptions()
 )
 
-func init() {
-	videoCmd.Flags().StringVarP(&InputVideoPath, "input-video-path", "i", "", "Input video to perform the lightning detection.")
-	videoCmd.MarkPersistentFlagRequired("input-video-path")
+const (
+	InputVideoPathFlagName      string = "input-video-path"
+	OutputDirectoryPathFlagName string = "output-directory-path"
+)
 
-	videoCmd.PersistentFlags().StringVarP(&OutputDirectoryPath, "output-directory-path", "o", "", "Output directory path for export artifacts such as frames and reports in selected formats.")
-	videoCmd.MarkPersistentFlagRequired("output-directory-path")
+func init() {
+	videoCmd.Flags().StringVarP(&InputVideoPath, InputVideoPathFlagName, "i", "", "Input video to perform the lightning detection.")
+	_ = videoCmd.MarkFlagRequired(InputVideoPathFlagName)
+	_ = videoCmd.MarkFlagFilename(InputVideoPathFlagName)
+
+	videoCmd.Flags().StringVarP(&OutputDirectoryPath, OutputDirectoryPathFlagName, "o", "", "Output directory path for export artifacts such as frames and reports in selected formats.")
+	_ = videoCmd.MarkFlagRequired(OutputDirectoryPathFlagName)
+	_ = videoCmd.MarkFlagDirname(OutputDirectoryPathFlagName)
 
 	videoCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.AutoThresholds,
@@ -67,11 +74,15 @@ func init() {
 		DetectorOptions.ExportCsvReport,
 		"Export of reports in CSV format.")
 
+	_ = videoCmd.PersistentFlags().MarkDeprecated("export-csv-report", "The CSV export is deprecated and will be removed in the future")
+
 	videoCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.ExportJsonReport,
 		"export-json-report", "j",
 		DetectorOptions.ExportJsonReport,
 		"Export of reports in JSON format.")
+
+	_ = videoCmd.PersistentFlags().MarkDeprecated("export-json-report", "This flag is deprecated and will be removed in the future, use the -r flag instead")
 
 	videoCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.FrameScalingFactor,
@@ -90,6 +101,14 @@ func init() {
 		"export-confusion-matrix",
 		DetectorOptions.ExportConfusionMatrix,
 		"Value indicating if the frames detection classification confusion matrix should be rendered.")
+
+	_ = videoCmd.PersistentFlags().MarkDeprecated("export-confusion-matrix", "This flag is deprecated and will be removed in the future. The confusion matrix results are exported by default.")
+
+	videoCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.ExportReport,
+		"export-report", "r",
+		DetectorOptions.ExportReport,
+		"Export a full report in JSON format.")
 
 	videoCmd.PersistentFlags().StringVar(
 		&DetectorOptions.ConfusionMatrixActualDetectionsExpression,

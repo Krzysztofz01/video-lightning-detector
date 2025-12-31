@@ -40,8 +40,12 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 		}
 	}
 
-	var confusionMatrix statistics.ConfusionMatrix
-	if exporter.Options.ExportConfusionMatrix {
+	var (
+		exportConfusionMatrix bool = len(exporter.Options.ConfusionMatrixActualDetectionsExpression) > 0
+		confusionMatrix       statistics.ConfusionMatrix
+	)
+
+	if exportConfusionMatrix {
 		actualClassification, err := utils.ParseRangeExpression(exporter.Options.ConfusionMatrixActualDetectionsExpression)
 		if err != nil {
 			return fmt.Errorf("export: failed to parse the confusion matrix actual detections range expression: %w", err)
@@ -72,7 +76,7 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 			exporter.Printer.Info("Descriptive statistics in CSV format exported to %s", path)
 		}
 
-		if exporter.Options.ExportConfusionMatrix {
+		if exportConfusionMatrix {
 			if path, err := exportCsvConfusionMatrix(exporter.OutputDirPath, confusionMatrix); err != nil {
 				return fmt.Errorf("export: failed to export csv confusion matrix report: %w", err)
 			} else {
@@ -93,30 +97,11 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 		jsonProgressFinalize := exporter.Printer.Progress("Exporting reports in JSON format")
 		defer jsonProgressFinalize()
 
-		if path, err := exportJsonFrames(exporter.OutputDirPath, fc); err != nil {
-			return fmt.Errorf("export: failed to export json frames report: %w", err)
+		reportPath, err := exportJsonReport(exporter.OutputDirPath, exporter.Options, fc, ds, confusionMatrix)
+		if err != nil {
+			return fmt.Errorf("export: failed to export the json report: %w", err)
 		} else {
-			exporter.Printer.Info("Frames report in JSON format exported to: %s", path)
-		}
-
-		if path, err := exportJsonDescriptiveStatistics(exporter.OutputDirPath, ds); err != nil {
-			return fmt.Errorf("export: failed to export json descriptive statistics report: %w", err)
-		} else {
-			exporter.Printer.Info("Descriptive statistics in JSON format exported to %s", path)
-		}
-
-		if exporter.Options.ExportConfusionMatrix {
-			if path, err := exportJsonConfusionMatrix(exporter.OutputDirPath, confusionMatrix); err != nil {
-				return fmt.Errorf("export: failed to export json confusion matrix report: %w", err)
-			} else {
-				exporter.Printer.Info("Confusion matrix in JSON format exported to %s", path)
-			}
-		}
-
-		if path, err := exportJsonDetectionThresholds(exporter.OutputDirPath, exporter.Options); err != nil {
-			return fmt.Errorf("export: failed to export json detection thresholds report: %w", err)
-		} else {
-			exporter.Printer.Info("Detection thresholds in JSON format exported to %s", path)
+			exporter.Printer.Info("Report in JSON format exported to: %s", reportPath)
 		}
 
 		jsonProgressFinalize()
