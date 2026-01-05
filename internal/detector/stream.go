@@ -67,6 +67,10 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 		frameStrikeDetector     FrameStrikeDetector
 	)
 
+	var (
+		fps          int       = 0
+		fpsFrameTime time.Time = time.Now()
+	)
 readStream:
 	for {
 		select {
@@ -102,7 +106,10 @@ readStream:
 		windowStatistics = stats.Peek()
 
 		if detector.Printer.IsLogLevel(options.Verbose) {
-			detector.Printer.Debug("Frame: [%d - %s]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f)",
+			fps = utils.DivInt(1e6, int(time.Since(fpsFrameTime).Microseconds()), 1e4)
+			fpsFrameTime = time.Now()
+
+			detector.Printer.Debug("Frame: [%d - %s]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f) (%d fps)",
 				currentFrame.OrdinalNumber,
 				currentFrameTimestamp.Format("15:04:05.000"),
 				currentFrame.Brightness,
@@ -110,7 +117,8 @@ readStream:
 				currentFrame.ColorDifference,
 				windowStatistics.ColorDifferenceMovingMeanAtPoint,
 				currentFrame.BinaryThresholdDifference,
-				windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint)
+				windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint,
+				fps)
 		}
 
 		detections, err := detectionBuffer.PushAndResolveIndexes(currentFrame, windowStatistics)

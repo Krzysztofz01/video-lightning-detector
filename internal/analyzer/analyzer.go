@@ -118,6 +118,11 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
+	var (
+		fps          int       = 0
+		fpsFrameTime time.Time = time.Now()
+	)
+
 videoRead:
 	for {
 		select {
@@ -144,7 +149,12 @@ videoRead:
 			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
 		}
 
-		analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %f ColorDiff: %f BTDiff: %f", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference)
+		if analyzer.Printer.IsLogLevel(options.Verbose) {
+			fps = utils.DivInt(1e6, int(time.Since(fpsFrameTime).Microseconds()), 1e4)
+			fpsFrameTime = time.Now()
+
+			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference, fps)
+		}
 
 		frameNumber += 1
 		progressStep()

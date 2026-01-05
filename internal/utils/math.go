@@ -185,3 +185,11 @@ func Div(a, b, fallback float64) float64 {
 
 	return a / b
 }
+
+func DivInt(a, b, fallback int) int {
+	if b == 0 {
+		return fallback
+	}
+
+	return a / b
+}

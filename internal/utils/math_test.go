@@ -275,3 +275,23 @@ func TestDivShouldDivAndUseFallback(t *testing.T) {
 		assert.Equal(t, c.expected, actual)
 	}
 }
+
+func TestDivIntShouldDivAndUseFallback(t *testing.T) {
+	cases := []struct {
+		a        int
+		b        int
+		fallback int
+		expected int
+	}{
+		{1, 1, 0, 1 / 1},
+		{1, -1, 0, 1 / -1},
+		{1, 0, 0, 0},
+		{1, 0, 1, 1},
+	}
+
+	for _, c := range cases {
+		actual := DivInt(c.a, c.b, c.fallback)
+
+		assert.Equal(t, c.expected, actual)
+	}
+}
