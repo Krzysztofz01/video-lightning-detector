@@ -95,11 +95,9 @@ Flags:
   -b, --brightness-threshold float                             The threshold used to determine the brightness of the frame. See the documentation for more information on detection threshold values.
   -c, --color-difference-threshold float                       The threshold used to determine the difference between two neighbouring frames on the color basis. See the documentation for more information on detection threshold values.
       --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14
-  -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ stackblur16, stackblur32, none, stackblur8 ] (default none)
+  -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ stackblur32, none, stackblur8, stackblur16 ] (default none)
       --detection-bounds-expression string                     An expression indicating consecutively the coordinates of the upper left point, width and height of the cutout (bounding box) of the recording to be processed.  Example: 0:0:100:200
-      --export-confusion-matrix                                Value indicating if the frames detection classification confusion matrix should be rendered.
-  -e, --export-csv-report                                      Export of reports in CSV format.
-  -j, --export-json-report                                     Export of reports in JSON format.
+  -r, --export-report                                          Export a full report in JSON format.
   -h, --help                                                   help for video
   -p, --import-preanalyzed                                     Use the cached data associated with the video analysis or save it in case the video has not already been analysed.
   -i, --input-video-path string                                Input video to perform the lightning detection.
@@ -112,7 +110,6 @@ Flags:
 
 Global Flags:
   -l, --log-level loglevel   The verbosity of the log messages printed to the standard output. (default info)
-
 ```
 
 # Example usage
@@ -136,9 +133,9 @@ The recording noise or movement on the video is causing false positives? Lets ad
 vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -n
 ```
 
-Running the detector without exporting the frames but with CSV and JSON report export.
+Running the detector without exporting the frames but with JSON report exporting.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -f -e -j
+vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -f -r
 ```
 
 Running the detector with explicit threshold values.
