@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/frame"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
-	"github.com/Krzysztofz01/video-lightning-detector/internal/statistics"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
@@ -15,42 +13,60 @@ const (
 	JsonReportFileName string = "report.json"
 )
 
-// FIXME: Create a separate export wrapper to avoid passing a huge amount of args
-func exportJsonReport(outputDirectoryPath string, options options.DetectorOptions, fc frame.FrameCollection, ds statistics.DescriptiveStatistics, cm statistics.ConfusionMatrix) (string, error) {
-	frames := make([]jsonFrameReport, 0, fc.Count())
-	for index, f := range fc.GetAll() {
+func exportJsonReport(outputDirectoryPath string, options options.DetectorOptions, args *exporterArguments) (string, error) {
+	// NOTE: The lookups are 1-indexed like the frame ordinal numbers, the provided detection values are 0-indexed
+	var (
+		expectedDetectionsLookup = make(map[int]bool)
+		actualDetectionsLookup   = make(map[int]bool)
+	)
+
+	for _, detectionIndex := range args.ExpectedDetections {
+		expectedDetectionsLookup[detectionIndex+1] = true
+	}
+
+	for _, detectionIndex := range args.ActualDetections {
+		actualDetectionsLookup[detectionIndex+1] = true
+	}
+
+	frames := make([]jsonFrameReport, 0, args.FrameCollection.Count())
+	for index, f := range args.FrameCollection.GetAll() {
+		_, expectedDetection := expectedDetectionsLookup[f.OrdinalNumber]
+		_, actualDetection := actualDetectionsLookup[f.OrdinalNumber]
+
 		frames = append(frames, jsonFrameReport{
 			OrdinalNumber:                         f.OrdinalNumber,
 			ColorDifference:                       f.ColorDifference,
 			BinaryThresholdDifference:             f.BinaryThresholdDifference,
 			Brightness:                            f.Brightness,
-			BrightnessMovingMean:                  ds.BrightnessMovingMean[index],
-			BrightnessMovingStdDev:                ds.BrightnessMovingStdDev[index],
-			ColorDifferenceMovingMean:             ds.ColorDifferenceMovingMean[index],
-			ColorDifferenceMovingStdDev:           ds.ColorDifferenceMovingStdDev[index],
-			BinaryThresholdDifferenceMovingMean:   ds.BinaryThresholdDifferenceMovingMean[index],
-			BinaryThresholdDifferenceMovingStdDev: ds.BinaryThresholdDifferenceMovingStdDev[index],
+			BrightnessMovingMean:                  args.Statistics.BrightnessMovingMean[index],
+			BrightnessMovingStdDev:                args.Statistics.BrightnessMovingStdDev[index],
+			ColorDifferenceMovingMean:             args.Statistics.ColorDifferenceMovingMean[index],
+			ColorDifferenceMovingStdDev:           args.Statistics.ColorDifferenceMovingStdDev[index],
+			BinaryThresholdDifferenceMovingMean:   args.Statistics.BinaryThresholdDifferenceMovingMean[index],
+			BinaryThresholdDifferenceMovingStdDev: args.Statistics.BinaryThresholdDifferenceMovingStdDev[index],
+			ExpectedDetection:                     expectedDetection,
+			ActualDetection:                       actualDetection,
 		})
 	}
 
 	var confusionMatrix *jsonConfusionMatrixReport = nil
-	if (cm != statistics.ConfusionMatrix{}) {
+	if args.HasConfusionMatrix {
 		confusionMatrix = &jsonConfusionMatrixReport{
-			Tp:  cm.Tp,
-			Tn:  cm.Tn,
-			Fp:  cm.Fp,
-			Fn:  cm.Fn,
-			P:   cm.P,
-			N:   cm.N,
-			Tpr: cm.Tpr,
-			Tnr: cm.Tnr,
-			Acc: cm.Acc,
-			Ppv: cm.Ppv,
-			Npv: cm.Npv,
-			Fpr: cm.Fpr,
-			Fnr: cm.Fnr,
-			Mcc: cm.Mcc,
-			Fs:  cm.Fs,
+			Tp:  args.ConfusionMatrix.Tp,
+			Tn:  args.ConfusionMatrix.Tn,
+			Fp:  args.ConfusionMatrix.Fp,
+			Fn:  args.ConfusionMatrix.Fn,
+			P:   args.ConfusionMatrix.P,
+			N:   args.ConfusionMatrix.N,
+			Tpr: args.ConfusionMatrix.Tpr,
+			Tnr: args.ConfusionMatrix.Tnr,
+			Acc: args.ConfusionMatrix.Acc,
+			Ppv: args.ConfusionMatrix.Ppv,
+			Npv: args.ConfusionMatrix.Npv,
+			Fpr: args.ConfusionMatrix.Fpr,
+			Fnr: args.ConfusionMatrix.Fnr,
+			Mcc: args.ConfusionMatrix.Mcc,
+			Fs:  args.ConfusionMatrix.Fs,
 		}
 	}
 
@@ -67,18 +83,18 @@ func exportJsonReport(outputDirectoryPath string, options options.DetectorOption
 		},
 		Frames: frames,
 		DescriptiveStatistics: jsonDescriptiveStatisticsReport{
-			BrightnessMean:                             ds.BrightnessMean,
-			BrightnessStandardDeviation:                ds.BrightnessStandardDeviation,
-			BrightnessMin:                              ds.BrightnessMin,
-			BrightnessMax:                              ds.BrightnessMax,
-			ColorDifferenceMean:                        ds.ColorDifferenceMean,
-			ColorDifferenceStandardDeviation:           ds.ColorDifferenceStandardDeviation,
-			ColorDifferenceMin:                         ds.ColorDifferenceMin,
-			ColorDifferenceMax:                         ds.ColorDifferenceMax,
-			BinaryThresholdDifferenceMean:              ds.BinaryThresholdDifferenceMean,
-			BinaryThresholdDifferenceStandardDeviation: ds.BinaryThresholdDifferenceStandardDeviation,
-			BinaryThresholdDifferenceMin:               ds.BinaryThresholdDifferenceMin,
-			BinaryThresholdDifferenceMax:               ds.BinaryThresholdDifferenceMax,
+			BrightnessMean:                             args.Statistics.BrightnessMean,
+			BrightnessStandardDeviation:                args.Statistics.BrightnessStandardDeviation,
+			BrightnessMin:                              args.Statistics.BrightnessMin,
+			BrightnessMax:                              args.Statistics.BrightnessMax,
+			ColorDifferenceMean:                        args.Statistics.ColorDifferenceMean,
+			ColorDifferenceStandardDeviation:           args.Statistics.ColorDifferenceStandardDeviation,
+			ColorDifferenceMin:                         args.Statistics.ColorDifferenceMin,
+			ColorDifferenceMax:                         args.Statistics.ColorDifferenceMax,
+			BinaryThresholdDifferenceMean:              args.Statistics.BinaryThresholdDifferenceMean,
+			BinaryThresholdDifferenceStandardDeviation: args.Statistics.BinaryThresholdDifferenceStandardDeviation,
+			BinaryThresholdDifferenceMin:               args.Statistics.BinaryThresholdDifferenceMin,
+			BinaryThresholdDifferenceMax:               args.Statistics.BinaryThresholdDifferenceMax,
 		},
 		ConfusionMatrix: confusionMatrix,
 	}
@@ -105,7 +121,6 @@ func exportJsonReport(outputDirectoryPath string, options options.DetectorOption
 	return reportFilePath, nil
 }
 
-// FIXME: Add the expected and actual detections
 type jsonReport struct {
 	Options               jsonOptionsReport               `json:"options"`
 	Frames                []jsonFrameReport               `json:"frames"`
@@ -135,6 +150,8 @@ type jsonFrameReport struct {
 	ColorDifferenceMovingStdDev           float64 `json:"color-difference-moving-standard-deviation"`
 	BinaryThresholdDifferenceMovingMean   float64 `json:"binary-threshold-difference-moving-mean"`
 	BinaryThresholdDifferenceMovingStdDev float64 `json:"binary-threshold-difference-moving-standard-deviation"`
+	ExpectedDetection                     bool    `json:"expected-detection"`
+	ActualDetection                       bool    `json:"actual-detection"`
 }
 
 type jsonDescriptiveStatisticsReport struct {
