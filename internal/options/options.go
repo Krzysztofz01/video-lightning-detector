@@ -11,18 +11,21 @@ type DetectorOptions struct {
 	ColorDifferenceDetectionThreshold           float64
 	BinaryThresholdDifferenceDetectionThreshold float64
 	MovingMeanResolution                        int32
-	ExportCsvReport                             bool
-	ExportJsonReport                            bool
-	ExportChartReport                           bool
-	ExportConfusionMatrix                       bool
-	ConfusionMatrixActualDetectionsExpression   string
-	SkipFramesExport                            bool
-	Denoise                                     DenoiseAlgorithm
-	FrameScalingFactor                          float64
-	ImportPreanalyzed                           bool
-	StrictExplicitThreshold                     bool
-	DetectionBoundsExpression                   string
-	ScaleAlgorithm                              ScaleAlgorithm
+	// Deprecated: The CSV export functionality will be removed in the future.
+	ExportCsvReport bool
+	// Deprecated: The JSON export specific flag will be removed and the ExportReport should be used instead.
+	ExportJsonReport bool
+	// Deprecated: The confusion matrix is exported by default and is depended on the presence of ConfusionMatrixActualDetectionsExpression
+	ExportConfusionMatrix                     bool
+	ExportReport                              bool
+	ConfusionMatrixActualDetectionsExpression string
+	SkipFramesExport                          bool
+	Denoise                                   DenoiseAlgorithm
+	FrameScalingFactor                        float64
+	ImportPreanalyzed                         bool
+	StrictExplicitThreshold                   bool
+	DetectionBoundsExpression                 string
+	ScaleAlgorithm                            ScaleAlgorithm
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
@@ -81,8 +84,8 @@ func (options *DetectorOptions) Clone() DetectorOptions {
 		MovingMeanResolution:                        options.MovingMeanResolution,
 		ExportCsvReport:                             options.ExportCsvReport,
 		ExportJsonReport:                            options.ExportJsonReport,
-		ExportChartReport:                           options.ExportChartReport,
 		ExportConfusionMatrix:                       options.ExportConfusionMatrix,
+		ExportReport:                                options.ExportReport,
 		ConfusionMatrixActualDetectionsExpression:   options.ConfusionMatrixActualDetectionsExpression,
 		SkipFramesExport:                            options.SkipFramesExport,
 		Denoise:                                     options.Denoise,
@@ -104,8 +107,8 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		MovingMeanResolution:                        50,
 		ExportCsvReport:                             false,
 		ExportJsonReport:                            false,
-		ExportChartReport:                           false,
 		ExportConfusionMatrix:                       false,
+		ExportReport:                                false,
 		ConfusionMatrixActualDetectionsExpression:   "",
 		SkipFramesExport:                            false,
 		Denoise:                                     NoDenoise,

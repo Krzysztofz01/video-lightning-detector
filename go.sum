@@ -24,8 +24,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/esimov/stackblur-go v1.1.1 h1:jZhuCbyFBp34SxkMwCuuNQ+d42w+CE/WOlcJLOlPEag=
 github.com/esimov/stackblur-go v1.1.1/go.mod h1:m0T0MjHYbo4Lib/R33XDUMbLBwyGf1/K48ZdqtXUYDA=
-github.com/go-echarts/go-echarts/v2 v2.3.1 h1:Yw0HVjVTxpYm48l974dMjRzx8ni2ql0kKi/kawSgxFE=
-github.com/go-echarts/go-echarts/v2 v2.3.1/go.mod h1:56YlvzhW/a+du15f3S2qUGNDfKnFOeJSThBIrVFHDtI=
 github.com/gookit/color v1.4.2/go.mod h1:fqRyamkC1W8uxl+lxCQxOT09l/vYfZ+QeiX3rKQHCoQ=
 github.com/gookit/color v1.5.0/go.mod h1:43aQb+Zerm/BWh2GnrgOQm7ffz7tvQXEKV6BFMl7wAo=
 github.com/gookit/color v1.5.3 h1:twfIhZs4QLCtimkP7MOxlF3A0U/5cDPseRT9M/+2SCE=
