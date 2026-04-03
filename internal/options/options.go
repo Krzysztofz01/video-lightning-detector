@@ -26,6 +26,7 @@ type DetectorOptions struct {
 	StrictExplicitThreshold                   bool
 	DetectionBoundsExpression                 string
 	ScaleAlgorithm                            ScaleAlgorithm
+	ExportFramesPrefix                        string
 }
 
 // Return a boolean value representing if the detector options are valid. If any validation errors occured
@@ -94,6 +95,7 @@ func (options *DetectorOptions) Clone() DetectorOptions {
 		StrictExplicitThreshold:                     options.StrictExplicitThreshold,
 		DetectionBoundsExpression:                   options.DetectionBoundsExpression,
 		ScaleAlgorithm:                              options.ScaleAlgorithm,
+		ExportFramesPrefix:                          options.ExportFramesPrefix,
 	}
 }
 
@@ -117,5 +119,6 @@ func GetDefaultDetectorOptions() DetectorOptions {
 		StrictExplicitThreshold:                     true,
 		DetectionBoundsExpression:                   "",
 		ScaleAlgorithm:                              Default,
+		ExportFramesPrefix:                          "frame",
 	}
 }

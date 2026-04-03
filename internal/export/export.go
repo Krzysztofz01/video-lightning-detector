@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"path"
 	"slices"
 	"time"
@@ -75,7 +76,7 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 		return fmt.Errorf("export: failed to export descriptive statistics: %w", err)
 	}
 
-	if !exporter.Options.SkipFramesExport {
+	if !exporter.Options.SkipFramesExport && len(detections) > 0 {
 		if err := exporter.ExportPngFrameImages(args.ActualDetections); err != nil {
 			return fmt.Errorf("export: failed to perform the detected frames images export: %w", err)
 		}
@@ -167,6 +168,12 @@ func (exporter *exporter) ExportPngFrameImages(detections []int) error {
 
 	progressStep, progressFinalize := exporter.Printer.ProgressSteps("Video frames export stage.", len(detections))
 
+	zeroPadding := 1 + int(math.Floor(math.Log10(float64(len(detections)))))
+	prefix := exporter.Options.ExportFramesPrefix
+	if len(exporter.Options.ExportFramesPrefix) > 0 {
+		prefix += "-"
+	}
+
 	for _, frameIndex := range detections {
 		if err := video.Read(); err == io.EOF {
 			break
@@ -174,7 +181,7 @@ func (exporter *exporter) ExportPngFrameImages(detections []int) error {
 			return fmt.Errorf("export: failed to read the video export frame: %w", err)
 		}
 
-		frameImageName := fmt.Sprintf("frame-%d.png", frameIndex+1)
+		frameImageName := fmt.Sprintf("%s%*d.png", prefix, zeroPadding, frameIndex+1)
 		frameImagePath := path.Join(exporter.OutputDirPath, frameImageName)
 		if err := utils.ExportImageAsPng(frameImagePath, frame); err != nil {
 			return fmt.Errorf("export: failed to export the frame image: %w", err)

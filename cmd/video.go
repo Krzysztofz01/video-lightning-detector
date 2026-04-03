@@ -140,6 +140,12 @@ func init() {
 		"scaling-algorithm",
 		fmt.Sprintf("Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ %s ]", scalingValues))
 
+	videoCmd.PersistentFlags().StringVar(
+		&DetectorOptions.ExportFramesPrefix,
+		"export-frames-prefix",
+		DetectorOptions.ExportFramesPrefix,
+		"Name prefix for exported image files.")
+
 	rootCmd.AddCommand(videoCmd)
 }
 
