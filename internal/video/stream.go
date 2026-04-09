@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
@@ -20,7 +21,8 @@ type VideoStream interface {
 	SetBbox(x, y, w, h int) error
 	SetFrameBuffer(buffer []byte) error
 	SetHttpHeaders(headers http.Header) error
-	Read() error
+	SetLatency(l int) error
+	Read() (int64, error)
 	Close()
 }
 
@@ -32,10 +34,20 @@ type videoStream struct {
 	BboxDim        utils.Vec2i
 	Scale          float64
 	ScaleAlgorithm options.ScaleAlgorithm
+	LatencyMs      int64
 	Fps            float64
 	FrameBuffer    []byte
 	Process        *exec.Cmd
 	Pipe           io.ReadCloser
+}
+
+func (v *videoStream) SetLatency(l int) error {
+	if l < 0 {
+		return fmt.Errorf("video: the latency value can not be negative")
+	}
+
+	v.LatencyMs = int64(l)
+	return nil
 }
 
 func (v *videoStream) SetHttpHeaders(headers http.Header) error {
@@ -145,21 +157,25 @@ func (v *videoStream) SetFrameBuffer(buffer []byte) error {
 	return nil
 }
 
-func (v *videoStream) Read() error {
+func (v *videoStream) Read() (int64, error) {
 	if !v.IsInitialized() {
 		if err := v.Init(); err != nil {
-			return fmt.Errorf("video: failed to initliaze frame reading video stream stream: %w", err)
+			return 0, fmt.Errorf("video: failed to initliaze frame reading video stream stream: %w", err)
 		}
 	}
 
 	if _, err := io.ReadFull(v.Pipe, v.FrameBuffer); err == nil {
-		return nil
+		// FIXME: Use the frame timestamp provided by the video stream or use a more precise approximation
+		t := time.Now().UTC().UnixMilli()
+		t -= v.LatencyMs
+
+		return t, nil
 	} else if errors.Is(err, io.EOF) {
-		return io.EOF
+		return 0, io.EOF
 	} else if errors.Is(err, io.ErrUnexpectedEOF) {
-		return fmt.Errorf("video: failed to read the video frame data via the process pipe due to invalid data length")
+		return 0, fmt.Errorf("video: failed to read the video frame data via the process pipe due to invalid data length")
 	} else {
-		return fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
+		return 0, fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
 	}
 }
 
