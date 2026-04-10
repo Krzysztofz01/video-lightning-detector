@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"os"
 	"path"
 	"time"
@@ -119,8 +120,8 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
 	var (
-		fps          int       = 0
-		fpsFrameTime time.Time = time.Now()
+		fps          int   = 0
+		fpsFrameTime int64 = 0
 	)
 
 videoRead:
@@ -150,8 +151,9 @@ videoRead:
 		}
 
 		if analyzer.Printer.IsLogLevel(options.Verbose) {
-			fps = utils.DivInt(1e6, int(time.Since(fpsFrameTime).Microseconds()), 1e4)
-			fpsFrameTime = time.Now()
+			now := time.Now().UTC().UnixMilli()
+			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
+			fpsFrameTime = now
 
 			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference, fps)
 		}

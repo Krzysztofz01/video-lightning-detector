@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/analyzer"
@@ -68,9 +69,10 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 	)
 
 	var (
-		fps          int       = 0
-		fpsFrameTime time.Time = time.Now()
+		fps          int   = 0
+		fpsFrameTime int64 = 0
 	)
+
 readStream:
 	for {
 		select {
@@ -106,8 +108,9 @@ readStream:
 		windowStatistics = stats.Peek()
 
 		if detector.Printer.IsLogLevel(options.Verbose) {
-			fps = utils.DivInt(1e6, int(time.Since(fpsFrameTime).Microseconds()), 1e4)
-			fpsFrameTime = time.Now()
+			now := time.Now().UTC().UnixMilli()
+			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
+			fpsFrameTime = now
 
 			detector.Printer.Debug("Frame: [%d - %s]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f) (%d fps)",
 				currentFrame.OrdinalNumber,
