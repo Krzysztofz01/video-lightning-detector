@@ -90,7 +90,7 @@ func TestGetDetectionPlotShouldRetrunErrorForInvalidParams(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithoutBbox(t *testing.T) {
+func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithoutBboxWithoutScaling(t *testing.T) {
 	const (
 		size       int     = 12
 		resolution int     = 6
@@ -112,6 +112,7 @@ func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithoutBbox(t 
 	}
 
 	opt := options.GetDefaultStreamDetectorOptions()
+	opt.FrameScalingFactor = 1
 	opt.FrameDetectionPlotResolution = resolution
 	opt.FrameDetectionPlotThreshold = threshold
 
@@ -131,7 +132,7 @@ func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithoutBbox(t 
 	assert.Equal(t, expectedVertical, plots[1])
 }
 
-func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithBbox(t *testing.T) {
+func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithBboxWithoutScaling(t *testing.T) {
 	const (
 		sizeFull   int     = 4
 		sizeBbox   int     = 2
@@ -156,6 +157,101 @@ func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithBbox(t *te
 	}
 
 	opt := options.GetDefaultStreamDetectorOptions()
+	opt.FrameScalingFactor = 1
+	opt.DetectionBoundsExpression = fmt.Sprintf("%d:%d:%d:%d", sizeBbox/2, sizeBbox/2, sizeBbox, sizeBbox)
+	opt.FrameDetectionPlotResolution = resolution
+	opt.FrameDetectionPlotThreshold = threshold
+
+	frameStrikeDetector, err := CreateFrameStrikeDetector(imgFull.Bounds().Dx(), imgFull.Bounds().Dy(), opt)
+	assert.Nil(t, err)
+	assert.NotNil(t, frameStrikeDetector)
+
+	var (
+		expectedHorizontal []float64 = []float64{0, 0.0, 0.5, 0}
+		expectedVertical   []float64 = []float64{0, 0.25, 0.25, 0}
+	)
+
+	plots, err := frameStrikeDetector.GetDetectionPlot(imgBbox)
+	assert.Nil(t, err)
+	assert.Len(t, plots, 2)
+	assert.Equal(t, expectedHorizontal, plots[0])
+	assert.Equal(t, expectedVertical, plots[1])
+}
+
+func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithoutBboxWithScaling(t *testing.T) {
+	const (
+		scaling    float64 = 0.5
+		sizeFull   int     = 8
+		sizeScale  int     = int(float64(sizeFull) * scaling)
+		resolution int     = 4
+		threshold  float64 = 225.0 / 255.0
+	)
+
+	imgFull := image.NewRGBA(image.Rect(0, 0, sizeFull, sizeFull))
+	imgScale := image.NewRGBA(image.Rect(0, 0, sizeScale, sizeScale))
+
+	for y := 0; y < sizeScale; y++ {
+		for x := 0; x < sizeScale; x++ {
+			var c color.Color
+			if x < sizeScale/2 {
+				c = color.Black
+			} else {
+				c = color.White
+			}
+
+			imgScale.Set(x, y, c)
+		}
+	}
+
+	opt := options.GetDefaultStreamDetectorOptions()
+	opt.FrameScalingFactor = scaling
+	opt.FrameDetectionPlotResolution = resolution
+	opt.FrameDetectionPlotThreshold = threshold
+
+	frameStrikeDetector, err := CreateFrameStrikeDetector(imgFull.Bounds().Dx(), imgFull.Bounds().Dy(), opt)
+	assert.Nil(t, err)
+	assert.NotNil(t, frameStrikeDetector)
+
+	var (
+		expectedHorizontal []float64 = []float64{0, 0.0, 1, 1}
+		expectedVertical   []float64 = []float64{0.5, 0.5, 0.5, 0.5}
+	)
+
+	plots, err := frameStrikeDetector.GetDetectionPlot(imgScale)
+	assert.Nil(t, err)
+	assert.Len(t, plots, 2)
+	assert.Equal(t, expectedHorizontal, plots[0])
+	assert.Equal(t, expectedVertical, plots[1])
+}
+
+func TestGetDetectionPlotShouldReturnCorrectPlotDataForValidParamsWithBboxWithScaling(t *testing.T) {
+	const (
+		scaling        float64 = 0.5
+		sizeFull       int     = 8
+		sizeBbox       int     = 4
+		sizeScaledBbox int     = int(float64(sizeBbox) * scaling)
+		resolution     int     = 4
+		threshold      float64 = 225.0 / 255.0
+	)
+
+	imgFull := image.NewRGBA(image.Rect(0, 0, sizeFull, sizeFull))
+	imgBbox := image.NewRGBA(image.Rect(0, 0, sizeScaledBbox, sizeScaledBbox))
+
+	for y := 0; y < sizeScaledBbox; y++ {
+		for x := 0; x < sizeScaledBbox; x++ {
+			var c color.Color
+			if x < sizeScaledBbox/2 {
+				c = color.Black
+			} else {
+				c = color.White
+			}
+
+			imgBbox.Set(x, y, c)
+		}
+	}
+
+	opt := options.GetDefaultStreamDetectorOptions()
+	opt.FrameScalingFactor = scaling
 	opt.DetectionBoundsExpression = fmt.Sprintf("%d:%d:%d:%d", sizeBbox/2, sizeBbox/2, sizeBbox, sizeBbox)
 	opt.FrameDetectionPlotResolution = resolution
 	opt.FrameDetectionPlotThreshold = threshold

@@ -96,8 +96,13 @@ func (d *frameStrikeDetector) GetDetectionPlot(frame *image.RGBA) ([2][]float64,
 	}
 
 	for index := 0; index < d.Resolution; index += 1 {
-		hVal[index] /= hSum[index]
-		vVal[index] /= vSum[index]
+		if hSum[index] > 0 {
+			hVal[index] /= hSum[index]
+		}
+
+		if vSum[index] > 0 {
+			vVal[index] /= vSum[index]
+		}
 	}
 
 	return [2][]float64{
@@ -120,6 +125,7 @@ func CreateFrameStrikeDetector(fullFrameWidth, fullFrameHeight int, options opti
 	}
 
 	var (
+		scale      float64     = options.FrameScalingFactor
 		bbox       bool        = false
 		bboxAnchor utils.Vec2i = utils.Vec2i{}
 		bboxDim    utils.Vec2i = utils.Vec2i{}
@@ -136,8 +142,8 @@ func CreateFrameStrikeDetector(fullFrameWidth, fullFrameHeight int, options opti
 		}
 
 		bbox = true
-		bboxAnchor = utils.Vec2i{X: x, Y: y}
-		bboxDim = utils.Vec2i{X: w, Y: h}
+		bboxAnchor = utils.Vec2i{X: int(float64(x) * scale), Y: int(float64(y) * scale)}
+		bboxDim = utils.Vec2i{X: int(float64(w) * scale), Y: int(float64(h) * scale)}
 	}
 
 	return &frameStrikeDetector{
@@ -146,6 +152,6 @@ func CreateFrameStrikeDetector(fullFrameWidth, fullFrameHeight int, options opti
 		Bbox:       bbox,
 		BboxAnchor: bboxAnchor,
 		BboxDim:    bboxDim,
-		FrameDim:   utils.Vec2i{X: fullFrameWidth, Y: fullFrameHeight},
+		FrameDim:   utils.Vec2i{X: int(float64(fullFrameWidth) * scale), Y: int(float64(fullFrameHeight) * scale)},
 	}, nil
 }
