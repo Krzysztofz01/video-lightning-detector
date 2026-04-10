@@ -13,6 +13,14 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
+type FrameTimestampResolution int
+
+const (
+	NaiveTimestampResolution FrameTimestampResolution = iota
+	ApproximatedTimestampResolution
+)
+
+// TODO: Add support for extracting the timestamps from the HLS logs.
 type VideoStream interface {
 	GetInputDimensions() (int, int)
 	GetOutputDimensions() (int, int)
@@ -22,32 +30,27 @@ type VideoStream interface {
 	SetFrameBuffer(buffer []byte) error
 	SetHttpHeaders(headers http.Header) error
 	SetLatency(l int) error
+	SetTimestampResolution(r FrameTimestampResolution) error
 	Read() (int64, error)
 	Close()
 }
 
 type videoStream struct {
-	Url            string
-	HttpHeaders    http.Header
-	Dim            utils.Vec2i
-	BboxAnchor     utils.Vec2i
-	BboxDim        utils.Vec2i
-	Scale          float64
-	ScaleAlgorithm options.ScaleAlgorithm
-	LatencyMs      int64
-	Fps            float64
-	FrameBuffer    []byte
-	Process        *exec.Cmd
-	Pipe           io.ReadCloser
-}
-
-func (v *videoStream) SetLatency(l int) error {
-	if l < 0 {
-		return fmt.Errorf("video: the latency value can not be negative")
-	}
-
-	v.LatencyMs = int64(l)
-	return nil
+	Url                 string
+	HttpHeaders         http.Header
+	Dim                 utils.Vec2i
+	BboxAnchor          utils.Vec2i
+	BboxDim             utils.Vec2i
+	Scale               float64
+	ScaleAlgorithm      options.ScaleAlgorithm
+	LatencyMs           int64
+	TimestampResolution FrameTimestampResolution
+	Fps                 float64
+	FrameBuffer         []byte
+	Process             *exec.Cmd
+	Pipe                io.ReadCloser
+	FrameCount          float64
+	FrameZeroTime       int64
 }
 
 func (v *videoStream) SetHttpHeaders(headers http.Header) error {
@@ -137,6 +140,33 @@ func (v *videoStream) SetBbox(x, y, w, h int) error {
 	return nil
 }
 
+func (v *videoStream) SetLatency(l int) error {
+	if v.IsInitialized() {
+		return fmt.Errorf("video: can not change latency value after initialization")
+	}
+
+	if l < 0 {
+		return fmt.Errorf("video: the latency value can not be negative")
+	}
+
+	v.LatencyMs = int64(l)
+	return nil
+}
+
+func (v *videoStream) SetTimestampResolution(r FrameTimestampResolution) error {
+	if v.IsInitialized() {
+		return fmt.Errorf("video: can not change timestamp resolution after initialization")
+	}
+
+	switch r {
+	case NaiveTimestampResolution, ApproximatedTimestampResolution:
+		v.TimestampResolution = r
+		return nil
+	default:
+		return fmt.Errorf("video: the timestamp resolution value is invalid")
+	}
+}
+
 func (v *videoStream) IsBboxUsed() bool {
 	return v.Dim.X != v.BboxDim.X || v.Dim.Y != v.BboxDim.Y
 }
@@ -165,11 +195,8 @@ func (v *videoStream) Read() (int64, error) {
 	}
 
 	if _, err := io.ReadFull(v.Pipe, v.FrameBuffer); err == nil {
-		// FIXME: Use the frame timestamp provided by the video stream or use a more precise approximation
-		t := time.Now().UTC().UnixMilli()
-		t -= v.LatencyMs
-
-		return t, nil
+		v.FrameCount += 1
+		return v.GetFrameTimestamp(), nil
 	} else if errors.Is(err, io.EOF) {
 		return 0, io.EOF
 	} else if errors.Is(err, io.ErrUnexpectedEOF) {
@@ -177,6 +204,19 @@ func (v *videoStream) Read() (int64, error) {
 	} else {
 		return 0, fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
 	}
+}
+
+func (v *videoStream) GetFrameTimestamp() int64 {
+	now := time.Now().UTC().UnixMilli()
+	if v.TimestampResolution == NaiveTimestampResolution {
+		return now - v.LatencyMs
+	}
+
+	if v.FrameZeroTime == 0 {
+		v.FrameZeroTime = now
+	}
+
+	return v.FrameZeroTime + int64(1000/v.Fps*v.FrameCount) - v.LatencyMs
 }
 
 func (v *videoStream) Close() {
@@ -253,6 +293,7 @@ func (v *videoStream) Init() error {
 		filters = append(filters, fmt.Sprintf("crop=%d:%d:%d:%d", w, h, x, y))
 	}
 
+	args = append(args, "-re")
 	args = append(args, "-i", v.Url)
 	args = append(args, "-loglevel", "quiet")
 	args = append(args, "-hide_banner")
@@ -320,16 +361,20 @@ func NewVideoStream(url string) (VideoStream, error) {
 	}
 
 	return &videoStream{
-		Url:            url,
-		HttpHeaders:    http.Header{},
-		Dim:            utils.Vec2i{X: probe.Width, Y: probe.Height},
-		BboxAnchor:     utils.Vec2i{X: 0, Y: 0},
-		BboxDim:        utils.Vec2i{X: probe.Width, Y: probe.Height},
-		Scale:          1,
-		ScaleAlgorithm: options.Default,
-		Fps:            probe.Fps,
-		FrameBuffer:    nil,
-		Process:        nil,
-		Pipe:           nil,
+		Url:                 url,
+		HttpHeaders:         http.Header{},
+		Dim:                 utils.Vec2i{X: probe.Width, Y: probe.Height},
+		BboxAnchor:          utils.Vec2i{X: 0, Y: 0},
+		BboxDim:             utils.Vec2i{X: probe.Width, Y: probe.Height},
+		Scale:               1,
+		ScaleAlgorithm:      options.Default,
+		LatencyMs:           0,
+		TimestampResolution: NaiveTimestampResolution,
+		Fps:                 probe.Fps,
+		FrameBuffer:         nil,
+		Process:             nil,
+		Pipe:                nil,
+		FrameCount:          0,
+		FrameZeroTime:       0,
 	}, nil
 }
