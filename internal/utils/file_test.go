@@ -3,6 +3,8 @@ package utils
 import (
 	"image"
 	"image/color"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path"
 	"testing"
@@ -70,4 +72,53 @@ func TestShouldExportImageAsPngForValidPathAndImage(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.True(t, FileExists(imagePath))
+}
+
+func TestImportImageRgbaShouldImportImage(t *testing.T) {
+	testCleanupPath()
+	defer testCleanupPath()
+
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.White)
+
+	pngImagePath := path.Join(testPath, "test_image.png")
+	jpegImagePath := path.Join(testPath, "test_image.jpeg")
+
+	if err := os.Mkdir(testPath, 0770); err != nil {
+		t.FailNow()
+	}
+
+	pngFile, err := os.Create(pngImagePath)
+	if err != nil {
+		t.FailNow()
+	}
+
+	if err := png.Encode(pngFile, img); err != nil {
+		t.FailNow()
+	}
+
+	if err := pngFile.Close(); err != nil {
+		t.FailNow()
+	}
+
+	jpegFile, err := os.Create(jpegImagePath)
+	if err != nil {
+		t.FailNow()
+	}
+
+	if err := jpeg.Encode(jpegFile, img, nil); err != nil {
+		t.FailNow()
+	}
+
+	if err := jpegFile.Close(); err != nil {
+		t.FailNow()
+	}
+
+	importedPng, err := ImportImageRgba(pngImagePath)
+	assert.Nil(t, err)
+	assert.NotNil(t, importedPng)
+
+	importedJpeg, err := ImportImageRgba(jpegImagePath)
+	assert.Nil(t, err)
+	assert.NotNil(t, importedJpeg)
 }

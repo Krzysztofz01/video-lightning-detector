@@ -61,7 +61,7 @@ func ExportImageAsPng(path string, img image.Image) error {
 	return nil
 }
 
-// TODO: Add tests
+// Open a png of jpeg image with a RGBA pixel format representation
 func ImportImageRgba(path string) (*image.RGBA, error) {
 	var (
 		file *os.File

@@ -87,6 +87,7 @@ func TestPrinterShouldCreateAndNotFailAtExposedApiCalls(t *testing.T) {
 		p.InfoA("Hello world %s", "test")
 		p.Warning("Hello world %s", "test")
 		p.Error("Hello world %s", "test")
+		p.WriteRaw("Hello world %s", "test")
 
 		finalizeProgress := p.Progress("Hello world")
 		finalizeProgress()
