@@ -77,7 +77,7 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 	}
 
 	if !exporter.Options.SkipFramesExport && len(detections) > 0 {
-		if err := exporter.ExportPngFrameImages(args.ActualDetections); err != nil {
+		if err := exporter.ExportPngFrameImages(args.ActualDetections, fc.Count()); err != nil {
 			return fmt.Errorf("export: failed to perform the detected frames images export: %w", err)
 		}
 	}
@@ -141,7 +141,7 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 	return nil
 }
 
-func (exporter *exporter) ExportPngFrameImages(detections []int) error {
+func (exporter *exporter) ExportPngFrameImages(detections []int, totalFrameCount int) error {
 	framesExportTime := time.Now()
 	exporter.Printer.Debug("Starting the frames export stage.")
 	exporter.Printer.Info("About to export %d frames.", len(detections))
@@ -168,7 +168,7 @@ func (exporter *exporter) ExportPngFrameImages(detections []int) error {
 
 	progressStep, progressFinalize := exporter.Printer.ProgressSteps("Video frames export stage.", len(detections))
 
-	zeroPadding := 1 + int(math.Floor(math.Log10(float64(len(detections)))))
+	zeroPadding := 1 + int(math.Floor(math.Log10(float64(totalFrameCount))))
 	prefix := exporter.Options.ExportFramesPrefix
 	if len(exporter.Options.ExportFramesPrefix) > 0 {
 		prefix += "-"
