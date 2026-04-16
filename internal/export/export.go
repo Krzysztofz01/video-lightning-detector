@@ -181,7 +181,7 @@ func (exporter *exporter) ExportPngFrameImages(detections []int) error {
 			return fmt.Errorf("export: failed to read the video export frame: %w", err)
 		}
 
-		frameImageName := fmt.Sprintf("%s%*d.png", prefix, zeroPadding, frameIndex+1)
+		frameImageName := fmt.Sprintf("%s%0*d.png", prefix, zeroPadding, frameIndex+1)
 		frameImagePath := path.Join(exporter.OutputDirPath, frameImageName)
 		if err := utils.ExportImageAsPng(frameImagePath, frame); err != nil {
 			return fmt.Errorf("export: failed to export the frame image: %w", err)
