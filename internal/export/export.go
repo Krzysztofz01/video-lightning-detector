@@ -137,7 +137,7 @@ func (exporter *exporter) Export(fc frame.FrameCollection, ds statistics.Descrip
 		jsonProgressFinalize()
 	}
 
-	exporter.Printer.Info("Export finished. Stage took: %s", time.Since(exportTime))
+	exporter.Printer.Debug("Export finished. Stage took: %s", time.Since(exportTime))
 	return nil
 }
 

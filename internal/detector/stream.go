@@ -47,7 +47,7 @@ func CreateStreamDetector(printer printer.Printer, options options.StreamDetecto
 
 func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Context) error {
 	runTime := time.Now()
-	detector.Printer.InfoA("starting the lightning hunt.")
+	detector.Printer.Info("Starting the lightning hunt.")
 
 	var (
 		movingMeanResolution int                                         = int(detector.Options.MovingMeanResolution)
@@ -77,7 +77,7 @@ readStream:
 	for {
 		select {
 		case <-ctx.Done():
-			detector.Printer.InfoA("Stopping the lightning hunt.")
+			detector.Printer.Info("Stopping the lightning hunt.")
 			break readStream
 		default:
 		}
@@ -173,6 +173,6 @@ readStream:
 		})
 	}
 
-	detector.Printer.InfoA("Lightning hunt was running for: %s", time.Since(runTime))
+	detector.Printer.Info("Lightning hunt was running for: %s", time.Since(runTime))
 	return nil
 }
