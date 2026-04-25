@@ -26,11 +26,11 @@ func init() {
 	rootCmd.PersistentFlags().VarP(&LogLevel, "log-level", "l", "The verbosity of the log messages printed to the standard output.")
 }
 
-func Execute(args []string) {
+func Execute(args []string) (exitCode int) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Fprintf(os.Stdout, "Unexpected failure: %s\n", err)
-			os.Exit(1)
+			_, _ = fmt.Fprintf(os.Stdout, "Unexpected failure: %s\n", err)
+			exitCode = 1
 		}
 	}()
 
@@ -49,12 +49,12 @@ func Execute(args []string) {
 	rootCmd.SetContext(ctx)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stdout, "Failure: %s\n", err)
-		os.Exit(1)
+		_, _ = fmt.Fprintf(os.Stdout, "Failure: %s\n", err)
+		exitCode = 1
 	}
 
 	cancel()
-	os.Exit(0)
+	return
 }
 
 var rootCmd = &cobra.Command{
