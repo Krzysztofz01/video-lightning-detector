@@ -112,10 +112,12 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 
 	// NOTE: Due to the fact that the internal video implementation works in such a way, that the frame count is an approximation instead of an
 	// exact value, the frameCount is used as an initial capacity value for the frames collection and not the result fixed size/frames count.
-	frameNumber := 1
-	frameCount := video.FramesCountApprox()
-	frames := frame.NewFrameCollection(frameCount)
-	defer frames.Lock()
+	var (
+		frameCount                = video.FramesCountApprox()
+		frames                    = frame.NewFrameCollection(frameCount)
+		frameFactory              = frame.CreateFrameFactory(frame.BinaryThresholdParam)
+		f            *frame.Frame = nil
+	)
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
@@ -145,8 +147,8 @@ videoRead:
 			}
 		}
 
-		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber, frame.BinaryThresholdParam)
-		if err := frames.Push(frame); err != nil {
+		f, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious)
+		if err = frames.Push(f); err != nil {
 			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
 		}
 
@@ -155,10 +157,9 @@ videoRead:
 			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
 			fpsFrameTime = now
 
-			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference, fps)
+			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", f.OrdinalNumber, frameCount, f.Brightness, f.ColorDifference, f.BinaryThresholdDifference, fps)
 		}
 
-		frameNumber += 1
 		progressStep()
 
 		// TODO: This can be run concurrently together with CreateNewFrame on separeted goroutines but will require a double-buffered framePrevious.

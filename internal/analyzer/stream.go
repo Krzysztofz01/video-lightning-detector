@@ -46,6 +46,7 @@ type streamAnalyzer struct {
 	StreamUrl         string
 	Options           options.StreamDetectorOptions
 	Printer           printer.Printer
+	FrameFactory      frame.FrameFactory
 	FrameBuffer       utils.CircularBuffer[*timedFrame]
 	FrameImageBuffer  utils.CircularBuffer[*image.RGBA]
 	FrameImageCurrent *image.RGBA
@@ -131,6 +132,7 @@ func (analyzer *streamAnalyzer) Initialize() error {
 		frameImageBufferAlloc[index] = image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
 	}
 
+	analyzer.FrameFactory = frame.CreateFrameFactory(frame.BinaryThresholdParam)
 	analyzer.FrameBuffer = utils.NewCircularBuffer[*timedFrame](capacity)
 	analyzer.FrameImageBuffer = utils.NewSaturatedCircularBuffer[*image.RGBA](frameImageBufferAlloc)
 	analyzer.FrameImageCurrent = frameCurrent
@@ -180,14 +182,19 @@ func (analyzer *streamAnalyzer) Next() error {
 		}
 	}
 
-	f := &timedFrame{
-		Frame:     frame.CreateNewFrame(analyzer.FrameImageCurrent, frameImagePrevious, analyzer.FrameNumber, frame.BinaryThresholdParam),
+	f, err := analyzer.FrameFactory.CreateNewFrame(analyzer.FrameImageCurrent, frameImagePrevious)
+	if err != nil {
+		return fmt.Errorf("analyzer: failed to create the a new frame: %w", err)
+	}
+
+	tf := &timedFrame{
+		Frame:     f,
 		Timestamp: timestamp,
 	}
 
 	analyzer.FrameNumber += 1
 
-	analyzer.FrameBuffer.Push(f)
+	analyzer.FrameBuffer.Push(tf)
 	copy(analyzer.FrameImageBuffer.PushP().Pix, analyzer.FrameImageCurrent.Pix)
 
 	return nil
@@ -221,6 +228,7 @@ func NewStreamAnalyzer(inputVideoStream string, o options.StreamDetectorOptions,
 		StreamUrl:         inputVideoStream,
 		Options:           o,
 		Printer:           p,
+		FrameFactory:      nil,
 		FrameBuffer:       nil,
 		FrameImageBuffer:  nil,
 		FrameImageCurrent: nil,

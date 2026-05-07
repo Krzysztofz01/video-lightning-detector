@@ -1,14 +1,9 @@
 package frame
 
 import (
+	"fmt"
 	"image"
 )
-
-// TODO: Apporach to the binary threshold segmentation:
-//       - Implementing different thresholds for day and night recordings where the birghtness would be the determinant
-//       - Currently there is a comparionsing between the BT result of current na previous frame to calculate white_pixels / all_pixels,
-//         alternatively just the normalized count of the occureance of white pixels could be returned as the result
-//       - determine the parameter for the binary threshold via "the half of the histogram" (Otsu)
 
 const (
 	BinaryThresholdParam float64 = 200.0 / 255.0
@@ -22,14 +17,44 @@ type Frame struct {
 	Brightness                float64 `json:"brightness"`
 }
 
-// Create a new frame instance by providing the current and previous frame images and the ordinal number (1 indexed) of the frame.
-func CreateNewFrame(currentFrame, previousFrame *image.RGBA, ordinalNumber int, binaryThresholdParam float64) *Frame {
-	frame := processFrame(currentFrame, previousFrame, ordinalNumber, binaryThresholdParam)
+// Factory used to create frame instances. The factory controlls the ordinal numbers which are 1-indexed.
+type FrameFactory interface {
+	CreateNewFrame(frameImage0, frameImage1 *image.RGBA) (*Frame, error)
+}
 
-	return &Frame{
-		OrdinalNumber:             ordinalNumber,
-		ColorDifference:           frame.ColorDifference,
-		BinaryThresholdDifference: frame.BinaryThresholdDifference,
-		Brightness:                frame.Brightness,
+type frameFactory struct {
+	BinaryThresholdParam float64
+	OrdinalNumber        int
+}
+
+// Create a new frame based on the N and N-1 frame images.
+func (ff *frameFactory) CreateNewFrame(frameImage0, frameImage1 *image.RGBA) (*Frame, error) {
+	if frameImage0 == nil {
+		return nil, fmt.Errorf("frame: invalid current frame image nil reference")
+	}
+
+	if (ff.OrdinalNumber != 1 && frameImage1 == nil) || (ff.OrdinalNumber == 1 && frameImage1 != nil) {
+		return nil, fmt.Errorf("frame: invalid previous frame image reference in context of ordinal number")
+	}
+
+	var (
+		pf = processFrame(frameImage0, frameImage1, ff.OrdinalNumber, ff.BinaryThresholdParam)
+		f  = &Frame{
+			OrdinalNumber:             ff.OrdinalNumber,
+			ColorDifference:           pf.ColorDifference,
+			BinaryThresholdDifference: pf.BinaryThresholdDifference,
+			Brightness:                pf.Brightness,
+		}
+	)
+
+	ff.OrdinalNumber += 1
+	return f, nil
+}
+
+// Create a new frame factory instance with the specified binary threshold argument used for segmentation operations.
+func CreateFrameFactory(binaryThresholdParam float64) FrameFactory {
+	return &frameFactory{
+		BinaryThresholdParam: binaryThresholdParam,
+		OrdinalNumber:        1,
 	}
 }

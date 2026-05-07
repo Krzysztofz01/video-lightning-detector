@@ -295,3 +295,29 @@ func TestIsPerfectSquareShouldCorrectlyIdentifyPerfectSquares(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	}
 }
+
+func TestNextPow2ShouldReturnTheNextPowerOfTwo(t *testing.T) {
+	cases := map[int]int{
+		-2:  1,
+		0:   1,
+		1:   1,
+		2:   2,
+		3:   4,
+		4:   4,
+		5:   8,
+		8:   8,
+		10:  16,
+		20:  32,
+		40:  64,
+		100: 128,
+		200: 256,
+		500: 512,
+		512: 512,
+	}
+
+	for x, expected := range cases {
+		actual := NextPow2(x)
+
+		assert.Equal(t, expected, actual)
+	}
+}

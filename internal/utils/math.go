@@ -197,3 +197,13 @@ func IsPerfectSquare(x int) (int, bool) {
 		return 0, false
 	}
 }
+
+// Get the next positive power of two which is equal or greater than x.
+func NextPow2(x int) int {
+	if x <= 0 {
+		return 1
+	}
+
+	p := math.Ceil(math.Log2(float64(x)))
+	return int(math.Pow(2, p))
+}

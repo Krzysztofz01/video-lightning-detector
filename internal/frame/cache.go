@@ -303,7 +303,6 @@ func decodeFrameCollectionPlain(r io.Reader) (FrameCollection, error) {
 	}
 
 	fc := NewFrameCollection(len(frames))
-	defer fc.Lock()
 
 	for _, frame := range frames {
 		if err := fc.Push(frame); err != nil {

@@ -6,33 +6,76 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
+
+	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
-func TestShouldCreateNewFirstFrame(t *testing.T) {
+func TestFactoryShouldCreateNewFirstFrame(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	a := mockImage(color.White)
-	b := mockImage(color.Black)
+	var (
+		a *image.RGBA = mockImage(color.White)
+		b *image.RGBA = nil
+	)
 
-	frame := CreateNewFrame(a, b, 1, BinaryThresholdParam)
+	factory := CreateFrameFactory(BinaryThresholdParam)
 
+	frame, err := factory.CreateNewFrame(a, b)
+
+	assert.Nil(t, err)
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)
 	assert.Equal(t, 0.0, frame.ColorDifference)
 	assert.Equal(t, 0.0, frame.BinaryThresholdDifference)
 }
 
+func TestFactoryShouldNotCreateNewFrameForInvalidImageReferences(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	factory := CreateFrameFactory(BinaryThresholdParam)
+	img := mockImage(color.White)
+
+	_, err := factory.CreateNewFrame(nil, nil)
+	assert.NotNil(t, err)
+
+	_, err = factory.CreateNewFrame(nil, img)
+	assert.NotNil(t, err)
+
+	_, err = factory.CreateNewFrame(img, img)
+	assert.NotNil(t, err)
+
+	_, err = factory.CreateNewFrame(img, nil)
+	assert.Nil(t, err)
+
+	_, err = factory.CreateNewFrame(nil, nil)
+	assert.NotNil(t, err)
+
+	_, err = factory.CreateNewFrame(img, nil)
+	assert.NotNil(t, err)
+
+	_, err = factory.CreateNewFrame(nil, img)
+	assert.NotNil(t, err)
+}
+
 func TestShouldCreateNewFrameWithDifferentNeighbour(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	a := mockImage(color.White)
-	b := mockImage(color.Black)
+	var (
+		a *image.RGBA = mockImage(color.White)
+		b *image.RGBA = mockImage(color.Black)
+	)
 
-	frame := CreateNewFrame(a, b, 2, BinaryThresholdParam)
+	factory := CreateFrameFactory(BinaryThresholdParam)
 
+	frame, err := factory.CreateNewFrame(b, nil)
+	assert.Nil(t, err)
+	assert.NotNil(t, frame)
+
+	frame, err = factory.CreateNewFrame(a, b)
+
+	assert.Nil(t, err)
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)
 	assert.Equal(t, 1.0, frame.ColorDifference)
@@ -42,11 +85,20 @@ func TestShouldCreateNewFrameWithDifferentNeighbour(t *testing.T) {
 func TestShouldCreateNewFrameWithIdenticalNeighbour(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	a := mockImage(color.White)
-	b := mockImage(color.White)
+	var (
+		a *image.RGBA = mockImage(color.White)
+		b *image.RGBA = mockImage(color.White)
+	)
 
-	frame := CreateNewFrame(a, b, 2, BinaryThresholdParam)
+	factory := CreateFrameFactory(BinaryThresholdParam)
 
+	frame, err := factory.CreateNewFrame(b, nil)
+	assert.Nil(t, err)
+	assert.NotNil(t, frame)
+
+	frame, err = factory.CreateNewFrame(a, b)
+
+	assert.Nil(t, err)
 	assert.NotNil(t, frame)
 	assert.Equal(t, 1.0, frame.Brightness)
 	assert.Equal(t, 0.0, frame.ColorDifference)
@@ -137,15 +189,19 @@ func TestShouldCreateAndCalculateCorrectValuesForWeightsForFirstAndNthFrame(t *t
 		expectedColorDiff2 /= count
 		expectedBtDiff2 /= count
 
-		frame1 := CreateNewFrame(img1, nil, 1, BinaryThresholdParam)
-		frame2 := CreateNewFrame(img2, img1, 2, BinaryThresholdParam)
+		factory := CreateFrameFactory(BinaryThresholdParam)
 
+		frame1, err1 := factory.CreateNewFrame(img1, nil)
+		frame2, err2 := factory.CreateNewFrame(img2, img1)
+
+		assert.Nil(t, err1)
 		assert.NotNil(t, frame1)
 		assert.Equal(t, 1, frame1.OrdinalNumber)
 		assert.InDelta(t, expectedBrightness1, frame1.Brightness, delta)
 		assert.InDelta(t, expectedColorDiff1, frame1.ColorDifference, delta)
 		assert.InDelta(t, expectedBtDiff1, frame1.BinaryThresholdDifference, delta)
 
+		assert.Nil(t, err2)
 		assert.NotNil(t, frame2)
 		assert.Equal(t, 2, frame2.OrdinalNumber)
 		assert.InDelta(t, expectedBrightness2, frame2.Brightness, delta)

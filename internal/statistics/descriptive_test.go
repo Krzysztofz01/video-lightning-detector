@@ -22,8 +22,6 @@ func TestCreateDescriptiveStatisticsShouldCorrectlyCalculateDescriptiveStatistic
 		assert.Nil(t, err)
 	}
 
-	fc.Lock()
-
 	cases := []struct {
 		Frames                                               frame.FrameCollection
 		MovingMeanResolution                                 int
