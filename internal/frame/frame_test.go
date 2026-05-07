@@ -43,9 +43,6 @@ func TestFactoryShouldNotCreateNewFrameForInvalidImageReferences(t *testing.T) {
 	_, err = factory.CreateNewFrame(nil, img)
 	assert.NotNil(t, err)
 
-	_, err = factory.CreateNewFrame(img, img)
-	assert.NotNil(t, err)
-
 	_, err = factory.CreateNewFrame(img, nil)
 	assert.Nil(t, err)
 

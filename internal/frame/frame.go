@@ -33,7 +33,7 @@ func (ff *frameFactory) CreateNewFrame(frameImage0, frameImage1 *image.RGBA) (*F
 		return nil, fmt.Errorf("frame: invalid current frame image nil reference")
 	}
 
-	if (ff.OrdinalNumber != 1 && frameImage1 == nil) || (ff.OrdinalNumber == 1 && frameImage1 != nil) {
+	if ff.OrdinalNumber > 1 && frameImage1 == nil {
 		return nil, fmt.Errorf("frame: invalid previous frame image reference in context of ordinal number")
 	}
 

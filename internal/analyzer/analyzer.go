@@ -147,7 +147,10 @@ videoRead:
 			}
 		}
 
-		f, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious)
+		if f, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious); err != nil {
+			return nil, fmt.Errorf("analyzer: failed to create the frame: %w", err)
+		}
+
 		if err = frames.Push(f); err != nil {
 			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
 		}
