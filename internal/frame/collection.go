@@ -7,6 +7,7 @@ import (
 // Structure representing the collection of video frames.
 type FrameCollection interface {
 	Push(frame *Frame) error
+	GetTail(index int) (*Frame, error)
 	GetAll() []*Frame
 	Count() int
 }
@@ -15,6 +16,15 @@ type frameCollection struct {
 	Frames   []*Frame
 	Index    int
 	Capacity int
+}
+
+// TODO: Add tests
+func (fc *frameCollection) GetTail(index int) (*Frame, error) {
+	if index >= fc.Index {
+		return nil, fmt.Errorf("frame: the index is out of the frames range")
+	}
+
+	return fc.Frames[fc.Index-index-1], nil
 }
 
 func (fc *frameCollection) Push(frame *Frame) error {

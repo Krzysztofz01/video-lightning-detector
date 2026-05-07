@@ -125,15 +125,13 @@ func MeanStdDevInc(value, mean, stdDev float64, length int) (float64, float64) {
 }
 
 // Calcualte the min and max value of the provided set. Panic if the value set is empty.
-func MinMax(x []float64) (float64, float64) {
-	if len(x) == 0 {
-		panic("utils: can not calculate the max value of an empty set")
+func MinMax(x []float64) (min, max float64) {
+	if x == nil || len(x) == 0 {
+		panic("utils: can not calculate the max value of an uninitialized or empty set")
 	}
 
-	var (
-		min float64 = x[0]
-		max float64 = x[0]
-	)
+	min = x[0]
+	max = x[0]
 
 	for _, value := range x {
 		if value < min {

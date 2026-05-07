@@ -65,3 +65,40 @@ func BinaryThreshold(r, g, b uint8, t float64) uint8 {
 		return 0xff
 	}
 }
+
+// TODO: Add tests
+func GetSaturationLuminance(r, g, b uint8) (float64, float64) {
+	var (
+		minU8 uint8
+		maxU8 uint8
+		minF  float64
+		maxF  float64
+	)
+
+	if r < g {
+		minU8 = r
+		maxU8 = g
+	}
+
+	if minU8 > b {
+		minU8 = b
+	} else if maxU8 < b {
+		maxU8 = b
+	}
+
+	minF, maxF = float64(minU8), float64(maxU8)
+	delta := maxF - minF
+
+	l := (maxF + minF) / 510.0
+	s := 0.0
+
+	if delta != 0.0 {
+		if l < 0.5 {
+			s = delta / (maxF + minF)
+		} else {
+			s = delta / (2.0 - maxF - minF)
+		}
+	}
+
+	return s, l
+}

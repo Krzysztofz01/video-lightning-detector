@@ -46,6 +46,18 @@ func exportJsonReport(outputDirectoryPath string, options options.DetectorOption
 			BinaryThresholdDifferenceMovingStdDev: args.Statistics.BinaryThresholdDifferenceMovingStdDev[index],
 			ExpectedDetection:                     expectedDetection,
 			ActualDetection:                       actualDetection,
+			BrightnessStdDev:                      f.BrightnessStdDev,
+			BrightnessMin:                         f.BrightnessMin,
+			BrightnessMax:                         f.BrightnessMax,
+			BrightnessFirstDerivative:             f.BrightnessFirstDerivative,
+			BrightnessSecondDerivative:            f.BrightnessSecondDerivative,
+			SaturationMean:                        f.SaturationMean,
+			SaturationStdDev:                      f.SaturationStdDev,
+			ColorDifferenceVariance:               f.ColorDifferenceVariance,
+			LuminanceMean:                         f.LuminanceMean,
+			LuminanceMin:                          f.LuminanceMin,
+			LuminanceMax:                          f.LuminanceMax,
+			BinaryThresholdRatio:                  f.BinaryThresholdRatio,
 		})
 	}
 
@@ -152,6 +164,18 @@ type jsonFrameReport struct {
 	BinaryThresholdDifferenceMovingStdDev float64 `json:"binary-threshold-difference-moving-standard-deviation"`
 	ExpectedDetection                     bool    `json:"expected-detection"`
 	ActualDetection                       bool    `json:"actual-detection"`
+	BrightnessStdDev                      float64 `json:"brightness-std-dev"`
+	BrightnessMin                         float64 `json:"brightness-min"`
+	BrightnessMax                         float64 `json:"brightness-max"`
+	BrightnessFirstDerivative             float64 `json:"brightness-first-derivative"`
+	BrightnessSecondDerivative            float64 `json:"brightness-second-derivative"`
+	SaturationMean                        float64 `json:"saturation-mean"`
+	SaturationStdDev                      float64 `json:"saturation-std-dev"`
+	ColorDifferenceVariance               float64 `json:"color-difference-variance"`
+	LuminanceMean                         float64 `json:"luminance-mean"`
+	LuminanceMin                          float64 `json:"luminance-min"`
+	LuminanceMax                          float64 `json:"luminance-max"`
+	BinaryThresholdRatio                  float64 `json:"binary-threshold-ratio"`
 }
 
 type jsonDescriptiveStatisticsReport struct {

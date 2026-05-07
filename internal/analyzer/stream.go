@@ -182,7 +182,25 @@ func (analyzer *streamAnalyzer) Next() error {
 		}
 	}
 
-	f, err := analyzer.FrameFactory.CreateNewFrame(analyzer.FrameImageCurrent, frameImagePrevious)
+	var framePrevious *frame.Frame = nil
+	if analyzer.FrameNumber > 1 {
+		if tf, err := analyzer.FrameBuffer.GetHead(0); err != nil {
+			return fmt.Errorf("analyzer: failed tro access the previous frame pointer from the buffer: %w", err)
+		} else {
+			framePrevious = tf.Frame
+		}
+	}
+
+	var framePenultimate *frame.Frame = nil
+	if analyzer.FrameNumber > 2 {
+		if tf, err := analyzer.FrameBuffer.GetHead(1); err != nil {
+			return fmt.Errorf("analyzer: failed to access the penultimate frame pointer from the buffer: %w", err)
+		} else {
+			framePenultimate = tf.Frame
+		}
+	}
+
+	f, err := analyzer.FrameFactory.CreateNewFrame(analyzer.FrameImageCurrent, frameImagePrevious, framePrevious, framePenultimate)
 	if err != nil {
 		return fmt.Errorf("analyzer: failed to create the a new frame: %w", err)
 	}
