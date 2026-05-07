@@ -8,13 +8,17 @@ import (
 )
 
 func TestFramesCollectionShouldCreate(t *testing.T) {
-	cases := []int{-1, 0, 5, 16}
+	collection := NewFrameCollection(5)
+	assert.NotNil(t, collection)
 
-	for _, c := range cases {
-		fc := NewFrameCollection(c)
+	assert.Panics(t, func() {
+		NewFrameCollection(-1)
+	})
 
-		assert.NotNil(t, fc)
-	}
+	assert.Panics(t, func() {
+		NewFrameCollection(0)
+	})
+
 }
 
 func TestFramesCollectionShouldPushValidFramesAndAccessIn(t *testing.T) {

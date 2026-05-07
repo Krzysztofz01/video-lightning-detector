@@ -2,8 +2,6 @@ package frame
 
 import (
 	"fmt"
-
-	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
 // Structure representing the collection of video frames.
@@ -48,10 +46,12 @@ func (fc *frameCollection) Count() int {
 }
 
 func NewFrameCollection(cap int) FrameCollection {
-	cap = utils.NextPow2(cap)
+	if cap <= 0 {
+		panic("frame: frame collection capacity must be greater than zero")
+	}
 
 	return &frameCollection{
-		Frames:   make([]*Frame, cap, cap),
+		Frames:   make([]*Frame, cap, cap+64),
 		Index:    0,
 		Capacity: cap,
 	}
