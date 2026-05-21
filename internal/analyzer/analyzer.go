@@ -28,10 +28,11 @@ type Analyzer interface {
 }
 
 type analyzer struct {
-	InputVideoPath string
-	OutputDirPath  string
-	Options        options.DetectorOptions
-	Printer        printer.Printer
+	InputVideoPath        string
+	InputVideoFingerprint []byte
+	OutputDirPath         string
+	Options               options.DetectorOptions
+	Printer               printer.Printer
 }
 
 func (analyzer *analyzer) GetFrames(ctx context.Context) (frame.FrameCollection, error) {
@@ -192,7 +193,7 @@ func (analyzer *analyzer) ImportPreanalyzedFrames() (frame.FrameCollection, bool
 		}
 	}()
 
-	optionsChecksum, err := options.CalculateChecksum(analyzer.Options)
+	optionsChecksum, err := options.CalculateChecksum(analyzer.Options, analyzer.InputVideoFingerprint)
 	if err != nil {
 		return nil, true, fmt.Errorf("analyzer: failed to access the detector options checksum: %w", err)
 	}
@@ -223,7 +224,7 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 		err                      error
 	)
 
-	if optionsChecksum, err = options.CalculateChecksum(analyzer.Options); err != nil {
+	if optionsChecksum, err = options.CalculateChecksum(analyzer.Options, analyzer.InputVideoFingerprint); err != nil {
 		return fmt.Errorf("analyzer: failed to access the options checksum: %w", err)
 	}
 
@@ -264,11 +265,23 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 	return nil
 }
 
-func NewAnalyzer(inputVideo, outputDir string, o options.DetectorOptions, p printer.Printer) Analyzer {
-	return &analyzer{
-		InputVideoPath: inputVideo,
-		OutputDirPath:  outputDir,
-		Options:        o,
-		Printer:        p,
+func NewAnalyzer(inputVideo, outputDir string, o options.DetectorOptions, p printer.Printer) (Analyzer, error) {
+	// NOTE: The fingerprint is only accessed if ImportPreanalyzed is used. The redundant file access
+	// is skipped to prevent performance regressions in scenarios with default detector options.
+	var fingerprint []byte
+	if o.ImportPreanalyzed {
+		if f, err := utils.GetFileFingerprint(inputVideo); err != nil {
+			return nil, fmt.Errorf("analyzer: failed to access the input video file fingerprint: %w", err)
+		} else {
+			fingerprint = f[:]
+		}
 	}
+
+	return &analyzer{
+		InputVideoPath:        inputVideo,
+		InputVideoFingerprint: fingerprint,
+		OutputDirPath:         outputDir,
+		Options:               o,
+		Printer:               p,
+	}, nil
 }
