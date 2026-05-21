@@ -11,22 +11,23 @@ import (
 	"slices"
 )
 
-// Format for the preanalzyed frames cache (.vld-cache)
-// Version 1
-//
-// +---------------+-------------------+------------------------+
-// | Name          | Bytes             | Offset                 |
-// +---------------+-------------------+------------------------+
-// | Magic         | 4                 | 0                      |
-// | Version       | 1                 | 4                      |
-// | Magic         | 4                 | 5                      |
-// | Checksum      | 20                | 9                      |
-// | Magic         | 4                 | 29                     |
-// | Compression   | 1                 | 33                     |
-// | Magic         | 4                 | 34                     |
-// | Length        | 4                 | 38                     |
-// | Data          | variable <Length> | 42                     |
-// +---------------+-------------------+------------------------+
+// Format for the preanalyzed frames cache (.vld-cache)
+//*
+// +------------------------------------------------------------------+
+// |                            Version 1                             |
+// +---------------+-------------------+----------+-------------------+
+// | Name          | Bytes             | Offset   | Version Agnostic  |
+// +---------------+-------------------+----------+-------------------+
+// | Magic         | 4                 | 0        | Yes               |
+// | Version       | 1                 | 4        | Yes               |
+// | Magic         | 4                 | 5        | Yes               |
+// | Checksum      | 20                | 9        | No                |
+// | Magic         | 4                 | 29       | No                |
+// | Compression   | 1                 | 33       | No                |
+// | Magic         | 4                 | 34       | No                |
+// | Length        | 4                 | 38       | No                |
+// | Data          | variable <Length> | 42       | No                |
+// +---------------+-------------------+----------+-------------------+
 //
 
 const (
@@ -224,6 +225,11 @@ func ChecksumEqualPeek(f io.Reader, checksum string) (bool, error) {
 
 	if _, err := io.ReadFull(f, magicBuffer); err != nil || !slices.Equal(magicBuffer, magicSequence) {
 		return false, fmt.Errorf("frame: failed to decode and check the magic sequence: %w", err)
+	}
+
+	// NOTE: Cache format version miss-match check
+	if !slices.Equal(formatVersion, versionBuffer) {
+		return false, nil
 	}
 
 	if _, err := io.ReadFull(f, checksumBuffer); err != nil {
