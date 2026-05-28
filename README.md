@@ -104,7 +104,7 @@ Flags:
   -p, --import-preanalyzed                                     Use the cached data associated with the video analysis or save it in case the video has not already been analysed.
   -i, --input-video-path string                                Input video to perform the lightning detection.
   -m, --moving-mean-resolution int32                           Resolution of the moving mean used when determining the statistics of the analysed frames. Has a direct impact on the accuracy of detection. (default 50)
-  -o, --output-directory-path string                           Output directory path for export artifacts such as frames and reports in selected formats.
+  -o, --output-directory-path string                           Output directory path for export artifacts such as frames and reports in selected formats. By default, the input video name is used to derive the output directory name.
       --scaling-algorithm scalealgorithm                       Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ default, bilinear, bicubic, nearest, lanczos, area ] (default default)
   -s, --scaling-factor float                                   Scaling factor for the frame size of the recording. Has a direct impact on the performance, quality and processing time of recordings. (default 0.5)
   -f, --skip-frames-export                                     Skipping the step in which positively classified frames are exported to image files.
@@ -120,39 +120,44 @@ Check if vld and other required binaries are configured correctly.
 vld check
 ```
 
-Running the detector with default values and auto-threshold calculation. The most automated approach.
+Running the detector with default values and auto-threshold calculation. The tool will create a `video_vld` directory for the results. This is the most automated approach.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a
+vld video -i ~/path/to/video.mp4 -a
 ```
 
 The detection takes ages to complete? Running the detector with frame scaling to improve performance.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -s 0.1
+vld video -i ~/path/to/video.mp4 -a -s 0.1
+```
+
+Use caching to perform the analysis once and experiment further with the detection and export stages.
+```sh
+vld video -i ~/path/to/video.mp4 -a -p
 ```
 
 The recording noise or movement on the video is causing false positives? Lets additionally apply noise reduction.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -n
+vld video -i ~/path/to/video.mp4 -a -n
 ```
 
 Running the detector without exporting the frames but with JSON report exporting.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -f -r
+vld video -i ~/path/to/video.mp4 -a -f -r
 ```
 
 Running the detector with explicit threshold values.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -t 0.002 -c 0.052 -b 0.035
+vld video -i ~/path/to/video.mp4 -t 0.002 -c 0.052 -b 0.035
 ```
 
 Running the detector with auto-threshold but explicit forced brightness threshold.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -b 0.035
+vld video -i ~/path/to/video.mp4 -a -b 0.035
 ```
 
 Running the detector with custom moving mean resolution.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -m 60
+vld video -i ~/path/to/video.mp4 -a -m 60
 ```
 
 # Citation
