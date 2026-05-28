@@ -1,6 +1,8 @@
 package utils
 
-import "math"
+import (
+	"math"
+)
 
 // Calculate the moving mean and standard deviation values of the provided set. The position paramter is the index of
 // the central subset element and the bias is the amount of "left" and "right" neighbours. Elements out of index are
@@ -184,4 +186,24 @@ func Div(a, b, fallback float64) float64 {
 	}
 
 	return a / b
+}
+
+// Check if x is a perfect square and return the squre value as an integer and the bool indicating the result
+func IsPerfectSquare(x int) (int, bool) {
+	sqrt := math.Sqrt(float64(x))
+	if sqrt == math.Trunc(sqrt) {
+		return int(sqrt), true
+	} else {
+		return 0, false
+	}
+}
+
+// Get the next positive power of two which is equal or greater than x.
+func NextPow2(x int) int {
+	if x <= 0 {
+		return 1
+	}
+
+	p := math.Ceil(math.Log2(float64(x)))
+	return int(math.Pow(2, p))
 }

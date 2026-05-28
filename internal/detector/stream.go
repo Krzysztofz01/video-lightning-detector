@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/analyzer"
@@ -46,7 +47,7 @@ func CreateStreamDetector(printer printer.Printer, options options.StreamDetecto
 
 func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Context) error {
 	runTime := time.Now()
-	detector.Printer.InfoA("starting the lightning hunt.")
+	detector.Printer.Info("Starting the lightning hunt.")
 
 	var (
 		movingMeanResolution int                                         = int(detector.Options.MovingMeanResolution)
@@ -67,11 +68,16 @@ func (detector *streamDetector) Run(inputVideoStreamUrl string, ctx context.Cont
 		frameStrikeDetector     FrameStrikeDetector
 	)
 
+	var (
+		fps          int   = 0
+		fpsFrameTime int64 = 0
+	)
+
 readStream:
 	for {
 		select {
 		case <-ctx.Done():
-			detector.Printer.InfoA("Stopping the lightning hunt.")
+			detector.Printer.Info("Stopping the lightning hunt.")
 			break readStream
 		default:
 		}
@@ -102,7 +108,11 @@ readStream:
 		windowStatistics = stats.Peek()
 
 		if detector.Printer.IsLogLevel(options.Verbose) {
-			detector.Printer.Debug("Frame: [%d - %s]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f)",
+			now := time.Now().UTC().UnixMilli()
+			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
+			fpsFrameTime = now
+
+			detector.Printer.Debug("Frame: [%d - %s]. Brightness: %1.6f (%1.4f) ColorDiff: %1.6f (%1.4f) BTDiff: %1.6f (%1.4f) (%d fps)",
 				currentFrame.OrdinalNumber,
 				currentFrameTimestamp.Format("15:04:05.000"),
 				currentFrame.Brightness,
@@ -110,7 +120,8 @@ readStream:
 				currentFrame.ColorDifference,
 				windowStatistics.ColorDifferenceMovingMeanAtPoint,
 				currentFrame.BinaryThresholdDifference,
-				windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint)
+				windowStatistics.BinaryThresholdDifferenceMovingMeanAtPoint,
+				fps)
 		}
 
 		detections, err := detectionBuffer.PushAndResolveIndexes(currentFrame, windowStatistics)
@@ -162,6 +173,6 @@ readStream:
 		})
 	}
 
-	detector.Printer.InfoA("Lightning hunt was running for: %s", time.Since(runTime))
+	detector.Printer.Info("Lightning hunt was running for: %s", time.Since(runTime))
 	return nil
 }

@@ -7,11 +7,20 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
+type FrameTimestampResolution int
+
+const (
+	NaiveTimestampResolution FrameTimestampResolution = iota
+	ApproximatedTimestampResolution
+)
+
+// TODO: Add support for extracting the timestamps from the HLS logs.
 type VideoStream interface {
 	GetInputDimensions() (int, int)
 	GetOutputDimensions() (int, int)
@@ -20,22 +29,28 @@ type VideoStream interface {
 	SetBbox(x, y, w, h int) error
 	SetFrameBuffer(buffer []byte) error
 	SetHttpHeaders(headers http.Header) error
-	Read() error
+	SetLatency(l int) error
+	SetTimestampResolution(r FrameTimestampResolution) error
+	Read() (int64, error)
 	Close()
 }
 
 type videoStream struct {
-	Url            string
-	HttpHeaders    http.Header
-	Dim            utils.Vec2i
-	BboxAnchor     utils.Vec2i
-	BboxDim        utils.Vec2i
-	Scale          float64
-	ScaleAlgorithm options.ScaleAlgorithm
-	Fps            float64
-	FrameBuffer    []byte
-	Process        *exec.Cmd
-	Pipe           io.ReadCloser
+	Url                 string
+	HttpHeaders         http.Header
+	Dim                 utils.Vec2i
+	BboxAnchor          utils.Vec2i
+	BboxDim             utils.Vec2i
+	Scale               float64
+	ScaleAlgorithm      options.ScaleAlgorithm
+	LatencyMs           int64
+	TimestampResolution FrameTimestampResolution
+	Fps                 float64
+	FrameBuffer         []byte
+	Process             *exec.Cmd
+	Pipe                io.ReadCloser
+	FrameCount          float64
+	FrameZeroTime       int64
 }
 
 func (v *videoStream) SetHttpHeaders(headers http.Header) error {
@@ -125,6 +140,33 @@ func (v *videoStream) SetBbox(x, y, w, h int) error {
 	return nil
 }
 
+func (v *videoStream) SetLatency(l int) error {
+	if v.IsInitialized() {
+		return fmt.Errorf("video: can not change latency value after initialization")
+	}
+
+	if l < 0 {
+		return fmt.Errorf("video: the latency value can not be negative")
+	}
+
+	v.LatencyMs = int64(l)
+	return nil
+}
+
+func (v *videoStream) SetTimestampResolution(r FrameTimestampResolution) error {
+	if v.IsInitialized() {
+		return fmt.Errorf("video: can not change timestamp resolution after initialization")
+	}
+
+	switch r {
+	case NaiveTimestampResolution, ApproximatedTimestampResolution:
+		v.TimestampResolution = r
+		return nil
+	default:
+		return fmt.Errorf("video: the timestamp resolution value is invalid")
+	}
+}
+
 func (v *videoStream) IsBboxUsed() bool {
 	return v.Dim.X != v.BboxDim.X || v.Dim.Y != v.BboxDim.Y
 }
@@ -145,22 +187,36 @@ func (v *videoStream) SetFrameBuffer(buffer []byte) error {
 	return nil
 }
 
-func (v *videoStream) Read() error {
+func (v *videoStream) Read() (int64, error) {
 	if !v.IsInitialized() {
 		if err := v.Init(); err != nil {
-			return fmt.Errorf("video: failed to initliaze frame reading video stream stream: %w", err)
+			return 0, fmt.Errorf("video: failed to initliaze frame reading video stream stream: %w", err)
 		}
 	}
 
 	if _, err := io.ReadFull(v.Pipe, v.FrameBuffer); err == nil {
-		return nil
+		v.FrameCount += 1
+		return v.GetFrameTimestamp(), nil
 	} else if errors.Is(err, io.EOF) {
-		return io.EOF
+		return 0, io.EOF
 	} else if errors.Is(err, io.ErrUnexpectedEOF) {
-		return fmt.Errorf("video: failed to read the video frame data via the process pipe due to invalid data length")
+		return 0, fmt.Errorf("video: failed to read the video frame data via the process pipe due to invalid data length")
 	} else {
-		return fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
+		return 0, fmt.Errorf("video: failed to read the video frame data via the process pipe: %w", err)
 	}
+}
+
+func (v *videoStream) GetFrameTimestamp() int64 {
+	now := time.Now().UTC().UnixMilli()
+	if v.TimestampResolution == NaiveTimestampResolution {
+		return now - v.LatencyMs
+	}
+
+	if v.FrameZeroTime == 0 {
+		v.FrameZeroTime = now
+	}
+
+	return v.FrameZeroTime + int64(1000/v.Fps*v.FrameCount) - v.LatencyMs
 }
 
 func (v *videoStream) Close() {
@@ -237,6 +293,8 @@ func (v *videoStream) Init() error {
 		filters = append(filters, fmt.Sprintf("crop=%d:%d:%d:%d", w, h, x, y))
 	}
 
+	args = append(args, "-re")
+	args = append(args, "-protocol_whitelist", "file,http,https,tcp,tls,crypto")
 	args = append(args, "-i", v.Url)
 	args = append(args, "-loglevel", "quiet")
 	args = append(args, "-hide_banner")
@@ -290,6 +348,10 @@ func (v *videoStream) Init() error {
 }
 
 func NewVideoStream(url string) (VideoStream, error) {
+	if strings.HasPrefix(url, "-") {
+		return nil, fmt.Errorf("video: the video stream url format is invalid")
+	}
+
 	if !utils.IsValidUrl(url) {
 		return nil, fmt.Errorf("video: the video stream url is invalid")
 	}
@@ -304,16 +366,20 @@ func NewVideoStream(url string) (VideoStream, error) {
 	}
 
 	return &videoStream{
-		Url:            url,
-		HttpHeaders:    http.Header{},
-		Dim:            utils.Vec2i{X: probe.Width, Y: probe.Height},
-		BboxAnchor:     utils.Vec2i{X: 0, Y: 0},
-		BboxDim:        utils.Vec2i{X: probe.Width, Y: probe.Height},
-		Scale:          1,
-		ScaleAlgorithm: options.Default,
-		Fps:            probe.Fps,
-		FrameBuffer:    nil,
-		Process:        nil,
-		Pipe:           nil,
+		Url:                 url,
+		HttpHeaders:         http.Header{},
+		Dim:                 utils.Vec2i{X: probe.Width, Y: probe.Height},
+		BboxAnchor:          utils.Vec2i{X: 0, Y: 0},
+		BboxDim:             utils.Vec2i{X: probe.Width, Y: probe.Height},
+		Scale:               1,
+		ScaleAlgorithm:      options.Default,
+		LatencyMs:           0,
+		TimestampResolution: NaiveTimestampResolution,
+		Fps:                 probe.Fps,
+		FrameBuffer:         nil,
+		Process:             nil,
+		Pipe:                nil,
+		FrameCount:          0,
+		FrameZeroTime:       0,
 	}, nil
 }

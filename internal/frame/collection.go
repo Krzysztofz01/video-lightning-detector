@@ -4,30 +4,22 @@ import (
 	"fmt"
 )
 
-const baseFrameCollectionCapacity = 32
-
 // Structure representing the collection of video frames.
 type FrameCollection interface {
 	Push(frame *Frame) error
 	GetAll() []*Frame
 	Count() int
-	Lock()
 }
 
 type frameCollection struct {
 	Frames   []*Frame
 	Index    int
 	Capacity int
-	Locked   bool
 }
 
 func (fc *frameCollection) Push(frame *Frame) error {
 	if frame == nil {
 		return fmt.Errorf("frame: invalid uninitialized frame reference")
-	}
-
-	if fc.Locked {
-		return fmt.Errorf("frame: frame collection is locked")
 	}
 
 	if fc.Index != frame.OrdinalNumber-1 {
@@ -46,24 +38,11 @@ func (fc *frameCollection) Push(frame *Frame) error {
 }
 
 func (fc *frameCollection) GetAll() []*Frame {
-	if !fc.Locked {
-		panic("frame: can not read from an unlocked frame collection")
-	}
-
-	a := fc.Frames[:fc.Index]
-	return a
+	return fc.Frames[:fc.Index]
 }
 
 func (fc *frameCollection) Count() int {
-	if !fc.Locked {
-		panic("frame: can not read from an unlocked frame collection")
-	}
-
 	return fc.Index
-}
-
-func (fc *frameCollection) Lock() {
-	fc.Locked = true
 }
 
 func NewFrameCollection(cap int) FrameCollection {
@@ -72,9 +51,8 @@ func NewFrameCollection(cap int) FrameCollection {
 	}
 
 	return &frameCollection{
-		Frames:   make([]*Frame, cap, baseFrameCollectionCapacity+cap),
+		Frames:   make([]*Frame, cap, cap+64),
 		Index:    0,
 		Capacity: cap,
-		Locked:   false,
 	}
 }

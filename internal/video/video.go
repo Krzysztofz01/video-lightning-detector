@@ -268,6 +268,7 @@ func (v *video) Init() error {
 		filters = append(filters, fmt.Sprintf("crop=%d:%d:%d:%d", w, h, x, y))
 	}
 
+	args = append(args, "-protocol_whitelist", "file")
 	args = append(args, "-i", v.FilePath)
 	args = append(args, "-loglevel", "quiet")
 	args = append(args, "-hide_banner")
@@ -312,6 +313,10 @@ func (v *video) Init() error {
 }
 
 func NewVideo(path string) (Video, error) {
+	if strings.HasPrefix(path, "-") {
+		return nil, fmt.Errorf("video: the video file path format is invalid")
+	}
+
 	if !utils.FileExists(path) {
 		return nil, fmt.Errorf("video: the video file specified by the path does not exist")
 	}

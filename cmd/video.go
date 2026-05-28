@@ -10,6 +10,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
 var (
@@ -18,12 +19,18 @@ var (
 	DetectorOptions     options.DetectorOptions = options.GetDefaultDetectorOptions()
 )
 
-func init() {
-	videoCmd.Flags().StringVarP(&InputVideoPath, "input-video-path", "i", "", "Input video to perform the lightning detection.")
-	videoCmd.MarkPersistentFlagRequired("input-video-path")
+const (
+	InputVideoPathFlagName      string = "input-video-path"
+	OutputDirectoryPathFlagName string = "output-directory-path"
+)
 
-	videoCmd.PersistentFlags().StringVarP(&OutputDirectoryPath, "output-directory-path", "o", "", "Output directory path for export artifacts such as frames and reports in selected formats.")
-	videoCmd.MarkPersistentFlagRequired("output-directory-path")
+func init() {
+	videoCmd.Flags().StringVarP(&InputVideoPath, InputVideoPathFlagName, "i", "", "Input video to perform the lightning detection.")
+	_ = videoCmd.MarkFlagRequired(InputVideoPathFlagName)
+	_ = videoCmd.MarkFlagFilename(InputVideoPathFlagName)
+
+	videoCmd.Flags().StringVarP(&OutputDirectoryPath, OutputDirectoryPathFlagName, "o", "", "Output directory path for export artifacts such as frames and reports in selected formats. By default, the input video name is used to derive the output directory name.")
+	_ = videoCmd.MarkFlagDirname(OutputDirectoryPathFlagName)
 
 	videoCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.AutoThresholds,
@@ -67,17 +74,15 @@ func init() {
 		DetectorOptions.ExportCsvReport,
 		"Export of reports in CSV format.")
 
+	_ = videoCmd.PersistentFlags().MarkDeprecated("export-csv-report", "The CSV export is deprecated and will be removed in the future")
+
 	videoCmd.PersistentFlags().BoolVarP(
 		&DetectorOptions.ExportJsonReport,
 		"export-json-report", "j",
 		DetectorOptions.ExportJsonReport,
 		"Export of reports in JSON format.")
 
-	videoCmd.PersistentFlags().BoolVarP(
-		&DetectorOptions.ExportChartReport,
-		"export-chart-report", "r",
-		DetectorOptions.ExportChartReport,
-		"Export of frame statistics as a chart in HTML format.")
+	_ = videoCmd.PersistentFlags().MarkDeprecated("export-json-report", "This flag is deprecated and will be removed in the future, use the -r flag instead")
 
 	videoCmd.PersistentFlags().Float64VarP(
 		&DetectorOptions.FrameScalingFactor,
@@ -96,6 +101,14 @@ func init() {
 		"export-confusion-matrix",
 		DetectorOptions.ExportConfusionMatrix,
 		"Value indicating if the frames detection classification confusion matrix should be rendered.")
+
+	_ = videoCmd.PersistentFlags().MarkDeprecated("export-confusion-matrix", "This flag is deprecated and will be removed in the future. The confusion matrix results are exported by default.")
+
+	videoCmd.PersistentFlags().BoolVarP(
+		&DetectorOptions.ExportReport,
+		"export-report", "r",
+		DetectorOptions.ExportReport,
+		"Export a full report in JSON format.")
 
 	videoCmd.PersistentFlags().StringVar(
 		&DetectorOptions.ConfusionMatrixActualDetectionsExpression,
@@ -127,6 +140,12 @@ func init() {
 		"scaling-algorithm",
 		fmt.Sprintf("Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ %s ]", scalingValues))
 
+	videoCmd.PersistentFlags().StringVar(
+		&DetectorOptions.ExportFramesPrefix,
+		"export-frames-prefix",
+		DetectorOptions.ExportFramesPrefix,
+		"Name prefix for exported image files.")
+
 	rootCmd.AddCommand(videoCmd)
 }
 
@@ -145,6 +164,16 @@ var videoCmd = &cobra.Command{
 		detectorInstance, err := detector.CreateDetector(printer.Instance(), DetectorOptions)
 		if err != nil {
 			return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
+		}
+
+		if len(OutputDirectoryPath) == 0 {
+			videoName, err := utils.GetFilenameWithoutExtensions(InputVideoPath)
+			if err != nil {
+				printer.Instance().Error("The output directory name can not be derived and must be specified by the flag.")
+				return fmt.Errorf("cmd: failed to derive the output directory name from input video path: %w", err)
+			} else {
+				OutputDirectoryPath = fmt.Sprintf("%s_vld", videoName)
+			}
 		}
 
 		if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath, cmd.Context()); err != nil {

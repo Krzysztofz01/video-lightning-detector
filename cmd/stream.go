@@ -92,6 +92,12 @@ func init() {
 		StreamDetectorOptions.DiagnosticMode,
 		"Enable diagnostic mode. Internal statistics will be printed out on stepping out of the detection stage.")
 
+	streamCmd.PersistentFlags().IntVar(
+		&StreamDetectorOptions.LatencyInMilliseconds,
+		"latency",
+		StreamDetectorOptions.LatencyInMilliseconds,
+		"The video stream latency compensation time skew in milliseconds.")
+
 	rootCmd.AddCommand(streamCmd)
 }
 

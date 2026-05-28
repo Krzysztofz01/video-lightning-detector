@@ -275,3 +275,49 @@ func TestDivShouldDivAndUseFallback(t *testing.T) {
 		assert.Equal(t, c.expected, actual)
 	}
 }
+
+func TestIsPerfectSquareShouldCorrectlyIdentifyPerfectSquares(t *testing.T) {
+	cases := map[int]bool{
+		0:  true,
+		1:  true,
+		2:  false,
+		3:  false,
+		4:  true,
+		5:  false,
+		8:  false,
+		9:  true,
+		10: false,
+	}
+
+	for c, expected := range cases {
+		_, actual := IsPerfectSquare(c)
+
+		assert.Equal(t, expected, actual)
+	}
+}
+
+func TestNextPow2ShouldReturnTheNextPowerOfTwo(t *testing.T) {
+	cases := map[int]int{
+		-2:  1,
+		0:   1,
+		1:   1,
+		2:   2,
+		3:   4,
+		4:   4,
+		5:   8,
+		8:   8,
+		10:  16,
+		20:  32,
+		40:  64,
+		100: 128,
+		200: 256,
+		500: 512,
+		512: 512,
+	}
+
+	for x, expected := range cases {
+		actual := NextPow2(x)
+
+		assert.Equal(t, expected, actual)
+	}
+}

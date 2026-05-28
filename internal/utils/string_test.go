@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: Implement more test cases
 func TestParseRangeExpressionShouldCorrectlyParseExpression(t *testing.T) {
 	cases := map[string][]int{
 		"1,2,3,4-8,10": {1, 2, 3, 4, 5, 6, 7, 8, 10},
@@ -23,7 +22,22 @@ func TestParseRangeExpressionShouldCorrectlyParseExpression(t *testing.T) {
 	}
 }
 
-// TODO: Implement more test cases
+func TestParseRangeExpressionShouldFailForInvalidExpression(t *testing.T) {
+	cases := []string{
+		"-1,1,2",
+		"--1",
+		"3-2",
+		"0,-1",
+		",",
+	}
+
+	for _, c := range cases {
+		r, err := ParseRangeExpression(c)
+		assert.NotNil(t, err)
+		assert.Nil(t, r)
+	}
+}
+
 func TestParseBoundsExpressionShouldCorrectlyParseExpression(t *testing.T) {
 	cases := map[string]struct {
 		X, Y, W, H int
@@ -42,5 +56,19 @@ func TestParseBoundsExpressionShouldCorrectlyParseExpression(t *testing.T) {
 		assert.Equal(t, y, expected.Y)
 		assert.Equal(t, w, expected.W)
 		assert.Equal(t, h, expected.H)
+	}
+}
+
+func TestParseBoundsExpressionShouldFailForInvalidExpression(t *testing.T) {
+	cases := []string{
+		"0:0:0:0:",
+		":0:0:0:0:",
+		"::::",
+		"-1:-1:-1:-1",
+	}
+
+	for _, c := range cases {
+		_, _, _, _, err := ParseBoundsExpression(c)
+		assert.NotNil(t, err)
 	}
 }

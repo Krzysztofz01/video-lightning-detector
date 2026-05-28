@@ -55,6 +55,9 @@ var frameCmd = &cobra.Command{
 			return fmt.Errorf("cmd: failed to import the image: %w", err)
 		}
 
+		FrameStreamDetectorOptions.FrameScalingFactor = 1.0
+		FrameStreamDetectorOptions.DetectionBoundsExpression = ""
+
 		detector, err := detector.CreateFrameStrikeDetector(img.Bounds().Dx(), img.Bounds().Dy(), FrameStreamDetectorOptions)
 		if err != nil {
 			return fmt.Errorf("cmd: failed to create frame strike detector: %w", err)

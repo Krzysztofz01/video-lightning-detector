@@ -8,6 +8,7 @@
 ![GitHub](https://img.shields.io/github/license/Krzysztofz01/video-lightning-detector)
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Krzysztofz01/video-lightning-detector?include_prereleases)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Krzysztofz01/video-lightning-detector)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fvideo-lightning-detector.krzysztofzon.pl%2F)](https://video-lightning-detector.krzysztofzon.pl/)
 
 **Work on the project is still in progress. Work is ongoing to further improve the quality of the classifications made and the processing time.** 
 
@@ -31,7 +32,7 @@ to automate their photography work, automatic data labeling and more.
 Required software to build **vld**:
 - **[git](https://git-scm.com/)** - Used to download the source code from the repository.
 - **[task](https://taskfile.dev/)** - Used as the main build tool.
-- **[go (version: 1.22+)](https://go.dev/)** - Used to compile the source code locally.
+- **[go (version: 1.24+)](https://go.dev/)** - Used to compile the source code locally.
 - **[docker](https://www.docker.com/)** or **[podman](https://podman.io/)** - (Optional) Used to build the tool image.
 
 Required software to use **vld**:
@@ -95,17 +96,15 @@ Flags:
   -b, --brightness-threshold float                             The threshold used to determine the brightness of the frame. See the documentation for more information on detection threshold values.
   -c, --color-difference-threshold float                       The threshold used to determine the difference between two neighbouring frames on the color basis. See the documentation for more information on detection threshold values.
       --confusion-matrix-actual-detections-expression string   Expression indicating the range of frames that should be used as actual classification. Example: 4,5,8-10,12,14
-  -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ stackblur16, stackblur32, none, stackblur8 ] (default none)
+  -n, --denoise denoisealgorithm                               The use of de-noising in the form of low-pass filters. Impact on the quality of weighting determination. Values: [ none, stackblur8, stackblur16, stackblur32 ] (default none)
       --detection-bounds-expression string                     An expression indicating consecutively the coordinates of the upper left point, width and height of the cutout (bounding box) of the recording to be processed.  Example: 0:0:100:200
-  -r, --export-chart-report                                    Export of frame statistics as a chart in HTML format.
-      --export-confusion-matrix                                Value indicating if the frames detection classification confusion matrix should be rendered.
-  -e, --export-csv-report                                      Export of reports in CSV format.
-  -j, --export-json-report                                     Export of reports in JSON format.
+      --export-frames-prefix string                            Name prefix for exported image files. (default "frame")
+  -r, --export-report                                          Export a full report in JSON format.
   -h, --help                                                   help for video
   -p, --import-preanalyzed                                     Use the cached data associated with the video analysis or save it in case the video has not already been analysed.
   -i, --input-video-path string                                Input video to perform the lightning detection.
   -m, --moving-mean-resolution int32                           Resolution of the moving mean used when determining the statistics of the analysed frames. Has a direct impact on the accuracy of detection. (default 50)
-  -o, --output-directory-path string                           Output directory path for export artifacts such as frames and reports in selected formats.
+  -o, --output-directory-path string                           Output directory path for export artifacts such as frames and reports in selected formats. By default, the input video name is used to derive the output directory name.
       --scaling-algorithm scalealgorithm                       Sampling interpolation algorithm to be used when scaling the video during analysis. Values: [ default, bilinear, bicubic, nearest, lanczos, area ] (default default)
   -s, --scaling-factor float                                   Scaling factor for the frame size of the recording. Has a direct impact on the performance, quality and processing time of recordings. (default 0.5)
   -f, --skip-frames-export                                     Skipping the step in which positively classified frames are exported to image files.
@@ -113,7 +112,6 @@ Flags:
 
 Global Flags:
   -l, --log-level loglevel   The verbosity of the log messages printed to the standard output. (default info)
-
 ```
 
 # Example usage
@@ -122,37 +120,71 @@ Check if vld and other required binaries are configured correctly.
 vld check
 ```
 
-Running the detector with default values and auto-threshold calculation. The most automated approach.
+Running the detector with default values and auto-threshold calculation. The tool will create a `video_vld` directory for the results. This is the most automated approach.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a
+vld video -i ~/path/to/video.mp4 -a
 ```
 
 The detection takes ages to complete? Running the detector with frame scaling to improve performance.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -s 0.1
+vld video -i ~/path/to/video.mp4 -a -s 0.1
+```
+
+Use caching to perform the analysis once and experiment further with the detection and export stages.
+```sh
+vld video -i ~/path/to/video.mp4 -a -p
 ```
 
 The recording noise or movement on the video is causing false positives? Lets additionally apply noise reduction.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -n
+vld video -i ~/path/to/video.mp4 -a -n
 ```
 
-Running the detector without exporting the frames but with CSV and JSON report export.
+Running the detector without exporting the frames but with JSON report exporting.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -f -e -j
+vld video -i ~/path/to/video.mp4 -a -f -r
 ```
 
 Running the detector with explicit threshold values.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -t 0.002 -c 0.052 -b 0.035
+vld video -i ~/path/to/video.mp4 -t 0.002 -c 0.052 -b 0.035
 ```
 
 Running the detector with auto-threshold but explicit forced brightness threshold.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -b 0.035
+vld video -i ~/path/to/video.mp4 -a -b 0.035
 ```
 
 Running the detector with custom moving mean resolution.
 ```sh
-vld video -i ~/path/to/video.mp4 -o ~/output/directory/ -a -m 60
+vld video -i ~/path/to/video.mp4 -a -m 60
+```
+
+# Citation
+Are you using this tool for research, experiments, or other scientific purposes? I encourage you to add information about the tool to the bibliography.
+
+BibTeX
+```tex
+@software{video-lightning-detector,
+  author       = {Krzysztof Zoń},
+  title        = {Video Lightning Detector},
+  year         = {2023},
+  url          = {https://github.com/Krzysztofz01/video-lightning-detector},
+}
+```
+
+RIS
+```text
+TY  - COMP
+AU  - Zoń, Krzysztof
+TI  - Video Lightning Detector
+PY  - 2023
+UR  - https://github.com/Krzysztofz01/video-lightning-detector
+ER  -
+```
+
+Plain Text
+```text
+Krzysztof Zoń. Video Lightning Detector. 2023
+Available at: https://github.com/Krzysztofz01/video-lightning-detector
 ```

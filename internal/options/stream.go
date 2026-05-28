@@ -16,6 +16,7 @@ type StreamDetectorOptions struct {
 	FrameDetectionPlotResolution                int
 	FrameDetectionPlotThreshold                 float64
 	DiagnosticMode                              bool
+	LatencyInMilliseconds                       int
 }
 
 // Return a boolean value representing if the stream detector options are valid. If any validation errors occured
@@ -61,6 +62,10 @@ func (options *StreamDetectorOptions) AreValid() (bool, string) {
 		return false, "the frame detection plot threshold must be between zero and one"
 	}
 
+	if options.LatencyInMilliseconds < 0 {
+		return false, "the latency in milliseconds can not be negative"
+	}
+
 	return true, ""
 }
 
@@ -79,6 +84,7 @@ func (options *StreamDetectorOptions) Clone() StreamDetectorOptions {
 		FrameDetectionPlotResolution:                options.FrameDetectionPlotResolution,
 		FrameDetectionPlotThreshold:                 options.FrameDetectionPlotThreshold,
 		DiagnosticMode:                              options.DiagnosticMode,
+		LatencyInMilliseconds:                       options.LatencyInMilliseconds,
 	}
 }
 
@@ -97,5 +103,6 @@ func GetDefaultStreamDetectorOptions() StreamDetectorOptions {
 		FrameDetectionPlotResolution:                25,
 		FrameDetectionPlotThreshold:                 0.95,
 		DiagnosticMode:                              false,
+		LatencyInMilliseconds:                       0,
 	}
 }

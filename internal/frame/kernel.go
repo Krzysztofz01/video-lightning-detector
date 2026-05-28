@@ -41,7 +41,7 @@ func processFrame(currentFrame, previousFrame *image.RGBA, ordinal int, bThresho
 		previousFrameBuffer    []uint8           = make([]uint8, 0)
 	)
 
-	if previousFrame != nil {
+	if ordinal > 1 {
 		previousFrameBuffer = previousFrame.Pix
 	}
 

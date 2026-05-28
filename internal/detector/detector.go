@@ -45,13 +45,16 @@ func CreateDetector(printer printer.Printer, options options.DetectorOptions) (D
 // Perform a lightning detection on the provided video specified by the file path and store the results at the specified directory path.
 func (detector *detector) Run(inputVideoPath, outputDirectoryPath string, ctx context.Context) error {
 	runTime := time.Now()
-	detector.printer.InfoA("Starting the lightning hunt.")
+	detector.printer.Info("Starting the lightning hunt.")
 
-	analyzer := analyzer.NewAnalyzer(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
+	analyzer, err := analyzer.NewAnalyzer(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
+	if err != nil {
+		return fmt.Errorf("detector: failed to create the analyzer instance: %w", err)
+	}
 
 	frames, err := analyzer.GetFrames(ctx)
 	if err != nil {
-		return fmt.Errorf("detector: video analysis stage failed: %w", err)
+		return fmt.Errorf("detector: failed to access the frames via analysis stage: %w", err)
 	}
 
 	descriptiveStatistics := statistics.CreateDescriptiveStatistics(frames, int(detector.options.MovingMeanResolution))
@@ -76,7 +79,7 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string, ctx co
 		return fmt.Errorf("detector: export stage failed: %w", err)
 	}
 
-	detector.printer.InfoA("Lightning hunting took: %s", time.Since(runTime))
+	detector.printer.Info("Lightning hunting took: %s", time.Since(runTime))
 	return nil
 }
 
