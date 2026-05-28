@@ -10,6 +10,7 @@ import (
 	"github.com/Krzysztofz01/video-lightning-detector/internal/detector"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
 	"github.com/Krzysztofz01/video-lightning-detector/internal/printer"
+	"github.com/Krzysztofz01/video-lightning-detector/internal/utils"
 )
 
 var (
@@ -28,8 +29,7 @@ func init() {
 	_ = videoCmd.MarkFlagRequired(InputVideoPathFlagName)
 	_ = videoCmd.MarkFlagFilename(InputVideoPathFlagName)
 
-	videoCmd.Flags().StringVarP(&OutputDirectoryPath, OutputDirectoryPathFlagName, "o", "", "Output directory path for export artifacts such as frames and reports in selected formats.")
-	_ = videoCmd.MarkFlagRequired(OutputDirectoryPathFlagName)
+	videoCmd.Flags().StringVarP(&OutputDirectoryPath, OutputDirectoryPathFlagName, "o", "", "Output directory path for export artifacts such as frames and reports in selected formats. By default, the input video name is used to derive the output directory name.")
 	_ = videoCmd.MarkFlagDirname(OutputDirectoryPathFlagName)
 
 	videoCmd.PersistentFlags().BoolVarP(
@@ -164,6 +164,16 @@ var videoCmd = &cobra.Command{
 		detectorInstance, err := detector.CreateDetector(printer.Instance(), DetectorOptions)
 		if err != nil {
 			return fmt.Errorf("cmd: failed to create the detector instance: %w", err)
+		}
+
+		if len(OutputDirectoryPath) == 0 {
+			videoName, err := utils.GetFilenameWithoutExtensions(InputVideoPath)
+			if err != nil {
+				printer.Instance().Error("The output directory name can not be derived and must be specified by the flag.")
+				return fmt.Errorf("cmd: failed to derive the output directory name from input video path: %w", err)
+			} else {
+				OutputDirectoryPath = fmt.Sprintf("%s_vld", videoName)
+			}
 		}
 
 		if err := detectorInstance.Run(InputVideoPath, OutputDirectoryPath, cmd.Context()); err != nil {
