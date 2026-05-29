@@ -117,7 +117,7 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 		frameCount                = video.FramesCountApprox()
 		frames                    = frame.NewFrameCollection(frameCount)
 		frameFactory              = frame.CreateFrameFactory(frame.BinaryThresholdParam)
-		f            *frame.Frame = nil
+		f0, f1, f2   *frame.Frame = nil, nil, nil
 	)
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
@@ -148,11 +148,23 @@ videoRead:
 			}
 		}
 
-		if f, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious); err != nil {
+		if frames.Count() >= 1 {
+			if f1, err = frames.GetTail(0); err != nil {
+				return nil, fmt.Errorf("analyzer: failed to access the previous frame: %w", err)
+			}
+		}
+
+		if frames.Count() >= 2 {
+			if f2, err = frames.GetTail(1); err != nil {
+				return nil, fmt.Errorf("analyzer: failed to access the penultimate frame: %w", err)
+			}
+		}
+
+		if f0, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious, f1, f2); err != nil {
 			return nil, fmt.Errorf("analyzer: failed to create the frame: %w", err)
 		}
 
-		if err = frames.Push(f); err != nil {
+		if err = frames.Push(f0); err != nil {
 			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
 		}
 
@@ -161,7 +173,7 @@ videoRead:
 			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
 			fpsFrameTime = now
 
-			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", f.OrdinalNumber, frameCount, f.Brightness, f.ColorDifference, f.BinaryThresholdDifference, fps)
+			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", f0.OrdinalNumber, frameCount, f0.Brightness, f0.ColorDifference, f0.BinaryThresholdDifference, fps)
 		}
 
 		progressStep()
