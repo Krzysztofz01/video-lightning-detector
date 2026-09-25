@@ -67,11 +67,31 @@ func TestExportCachedFrameCollectionShouldExportAndImport(t *testing.T) {
 }
 
 func mockFrameCollection(capacity int) FrameCollection {
-	fc := NewFrameCollection(capacity)
-	defer fc.Lock()
+	var (
+		fc      = NewFrameCollection(capacity)
+		factory = CreateFrameFactory(BinaryThresholdParam)
+		img     = mockImage(color.White)
+	)
 
 	for index := 0; index < capacity; index += 1 {
-		fc.Push(CreateNewFrame(mockImage(color.White), mockImage(color.White), index+1, BinaryThresholdParam))
+		var (
+			f   *Frame
+			err error
+		)
+
+		if index == 0 {
+			f, err = factory.CreateNewFrame(img, nil)
+		} else {
+			f, err = factory.CreateNewFrame(img, img)
+		}
+
+		if err != nil {
+			panic("failed to create a frame for the mock frame collection")
+		}
+
+		if err = fc.Push(f); err != nil {
+			panic("failed to push the frame to the mock frame collection")
+		}
 	}
 
 	return fc

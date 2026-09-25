@@ -294,6 +294,7 @@ func (v *videoStream) Init() error {
 	}
 
 	args = append(args, "-re")
+	args = append(args, "-protocol_whitelist", "file,http,https,tcp,tls,crypto")
 	args = append(args, "-i", v.Url)
 	args = append(args, "-loglevel", "quiet")
 	args = append(args, "-hide_banner")
@@ -347,6 +348,10 @@ func (v *videoStream) Init() error {
 }
 
 func NewVideoStream(url string) (VideoStream, error) {
+	if strings.HasPrefix(url, "-") {
+		return nil, fmt.Errorf("video: the video stream url format is invalid")
+	}
+
 	if !utils.IsValidUrl(url) {
 		return nil, fmt.Errorf("video: the video stream url is invalid")
 	}

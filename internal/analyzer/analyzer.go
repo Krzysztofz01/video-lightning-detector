@@ -28,10 +28,11 @@ type Analyzer interface {
 }
 
 type analyzer struct {
-	InputVideoPath string
-	OutputDirPath  string
-	Options        options.DetectorOptions
-	Printer        printer.Printer
+	InputVideoPath        string
+	InputVideoFingerprint []byte
+	OutputDirPath         string
+	Options               options.DetectorOptions
+	Printer               printer.Printer
 }
 
 func (analyzer *analyzer) GetFrames(ctx context.Context) (frame.FrameCollection, error) {
@@ -112,10 +113,12 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 
 	// NOTE: Due to the fact that the internal video implementation works in such a way, that the frame count is an approximation instead of an
 	// exact value, the frameCount is used as an initial capacity value for the frames collection and not the result fixed size/frames count.
-	frameNumber := 1
-	frameCount := video.FramesCountApprox()
-	frames := frame.NewFrameCollection(frameCount)
-	defer frames.Lock()
+	var (
+		frameCount                = video.FramesCountApprox()
+		frames                    = frame.NewFrameCollection(frameCount)
+		frameFactory              = frame.CreateFrameFactory(frame.BinaryThresholdParam)
+		f            *frame.Frame = nil
+	)
 
 	progressStep, progressFinalize := analyzer.Printer.ProgressSteps("Video analysis stage.", frameCount)
 
@@ -145,8 +148,11 @@ videoRead:
 			}
 		}
 
-		frame := frame.CreateNewFrame(frameCurrent, framePrevious, frameNumber, frame.BinaryThresholdParam)
-		if err := frames.Push(frame); err != nil {
+		if f, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious); err != nil {
+			return nil, fmt.Errorf("analyzer: failed to create the frame: %w", err)
+		}
+
+		if err = frames.Push(f); err != nil {
 			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
 		}
 
@@ -155,10 +161,9 @@ videoRead:
 			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
 			fpsFrameTime = now
 
-			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", frameNumber, frameCount, frame.Brightness, frame.ColorDifference, frame.BinaryThresholdDifference, fps)
+			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", f.OrdinalNumber, frameCount, f.Brightness, f.ColorDifference, f.BinaryThresholdDifference, fps)
 		}
 
-		frameNumber += 1
 		progressStep()
 
 		// TODO: This can be run concurrently together with CreateNewFrame on separeted goroutines but will require a double-buffered framePrevious.
@@ -188,7 +193,7 @@ func (analyzer *analyzer) ImportPreanalyzedFrames() (frame.FrameCollection, bool
 		}
 	}()
 
-	optionsChecksum, err := options.CalculateChecksum(analyzer.Options)
+	optionsChecksum, err := options.CalculateChecksum(analyzer.Options, analyzer.InputVideoFingerprint)
 	if err != nil {
 		return nil, true, fmt.Errorf("analyzer: failed to access the detector options checksum: %w", err)
 	}
@@ -219,7 +224,7 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 		err                      error
 	)
 
-	if optionsChecksum, err = options.CalculateChecksum(analyzer.Options); err != nil {
+	if optionsChecksum, err = options.CalculateChecksum(analyzer.Options, analyzer.InputVideoFingerprint); err != nil {
 		return fmt.Errorf("analyzer: failed to access the options checksum: %w", err)
 	}
 
@@ -260,11 +265,23 @@ func (analyzer *analyzer) ExportPreanalyzedFrames(fc frame.FrameCollection) erro
 	return nil
 }
 
-func NewAnalyzer(inputVideo, outputDir string, o options.DetectorOptions, p printer.Printer) Analyzer {
-	return &analyzer{
-		InputVideoPath: inputVideo,
-		OutputDirPath:  outputDir,
-		Options:        o,
-		Printer:        p,
+func NewAnalyzer(inputVideo, outputDir string, o options.DetectorOptions, p printer.Printer) (Analyzer, error) {
+	// NOTE: The fingerprint is only accessed if ImportPreanalyzed is used. The redundant file access
+	// is skipped to prevent performance regressions in scenarios with default detector options.
+	var fingerprint []byte
+	if o.ImportPreanalyzed {
+		if f, err := utils.GetFileFingerprint(inputVideo); err != nil {
+			return nil, fmt.Errorf("analyzer: failed to access the input video file fingerprint: %w", err)
+		} else {
+			fingerprint = f[:]
+		}
 	}
+
+	return &analyzer{
+		InputVideoPath:        inputVideo,
+		InputVideoFingerprint: fingerprint,
+		OutputDirPath:         outputDir,
+		Options:               o,
+		Printer:               p,
+	}, nil
 }

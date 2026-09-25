@@ -47,11 +47,14 @@ func (detector *detector) Run(inputVideoPath, outputDirectoryPath string, ctx co
 	runTime := time.Now()
 	detector.printer.Info("Starting the lightning hunt.")
 
-	analyzer := analyzer.NewAnalyzer(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
+	analyzer, err := analyzer.NewAnalyzer(inputVideoPath, outputDirectoryPath, detector.options, detector.printer)
+	if err != nil {
+		return fmt.Errorf("detector: failed to create the analyzer instance: %w", err)
+	}
 
 	frames, err := analyzer.GetFrames(ctx)
 	if err != nil {
-		return fmt.Errorf("detector: video analysis stage failed: %w", err)
+		return fmt.Errorf("detector: failed to access the frames via analysis stage: %w", err)
 	}
 
 	descriptiveStatistics := statistics.CreateDescriptiveStatistics(frames, int(detector.options.MovingMeanResolution))
