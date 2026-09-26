@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/denoise"
@@ -104,8 +105,12 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 	}
 
 	targetWidth, targetHeight := video.GetOutputDimensions()
-	frameCurrent := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-	framePrevious := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+
+	var (
+		frameCurrent   = image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+		framePreviousA = image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+		framePreviousB = image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+	)
 
 	if err := video.SetFrameBuffer(frameCurrent.Pix); err != nil {
 		return nil, fmt.Errorf("analyzer: failed to apply the given buffer as the video frame buffer: %w", err)
@@ -125,6 +130,12 @@ func (analyzer *analyzer) PerformFramesAnalysis(ctx context.Context) (frame.Fram
 	var (
 		fps          int   = 0
 		fpsFrameTime int64 = 0
+	)
+
+	var (
+		wg          sync.WaitGroup = sync.WaitGroup{}
+		readErrOnce sync.Once      = sync.Once{}
+		readErr     error
 	)
 
 videoRead:
@@ -148,26 +159,51 @@ videoRead:
 			}
 		}
 
-		if f, err = frameFactory.CreateNewFrame(frameCurrent, framePrevious); err != nil {
-			return nil, fmt.Errorf("analyzer: failed to create the frame: %w", err)
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			if f, err = frameFactory.CreateNewFrame(frameCurrent, framePreviousA); err != nil {
+				readErrOnce.Do(func() {
+					readErr = fmt.Errorf("analyzer: failed to create the frame: %w", err)
+				})
+
+				return
+			}
+
+			if err = frames.Push(f); err != nil {
+				readErrOnce.Do(func() {
+					readErr = fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
+				})
+
+				return
+			}
+
+			if analyzer.Printer.IsLogLevel(options.Verbose) {
+				now := time.Now().UTC().UnixMilli()
+				fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
+				fpsFrameTime = now
+
+				analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", f.OrdinalNumber, frameCount, f.Brightness, f.ColorDifference, f.BinaryThresholdDifference, fps)
+			}
+
+			progressStep()
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			copy(framePreviousB.Pix, frameCurrent.Pix)
+		}()
+
+		wg.Wait()
+
+		if readErr != nil {
+			return nil, readErr
 		}
 
-		if err = frames.Push(f); err != nil {
-			return nil, fmt.Errorf("analyzer: failed to push the frame to the collection: %w", err)
-		}
-
-		if analyzer.Printer.IsLogLevel(options.Verbose) {
-			now := time.Now().UTC().UnixMilli()
-			fps = int(1000.0 / math.Max(float64(now-fpsFrameTime), 1e-6))
-			fpsFrameTime = now
-
-			analyzer.Printer.Debug("Frame: [%d/%d]. Brightness: %1.6f ColorDiff: %1.6f BTDiff: %1.6f (%d fps)", f.OrdinalNumber, frameCount, f.Brightness, f.ColorDifference, f.BinaryThresholdDifference, fps)
-		}
-
-		progressStep()
-
-		// TODO: This can be run concurrently together with CreateNewFrame on separeted goroutines but will require a double-buffered framePrevious.
-		copy(framePrevious.Pix, frameCurrent.Pix)
+		framePreviousA.Pix, framePreviousB.Pix = framePreviousB.Pix, framePreviousA.Pix
 	}
 
 	progressFinalize()

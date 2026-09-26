@@ -64,7 +64,7 @@ func processFrame(currentFrame, previousFrame *image.RGBA, ordinal int, bThresho
 	return frame(aggregatedResult)
 }
 
-func processKernel(current, previous []uint8, offset, count, ordinal int, bthreshold float64, kernelChannel chan<- kernelResult, wg *sync.WaitGroup) {
+func processKernel(current, previous []uint8, offset, count, ordinal int, bThreshold float64, kernelChannel chan<- kernelResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	result := kernelResult{
@@ -105,8 +105,8 @@ func processKernel(current, previous []uint8, offset, count, ordinal int, bthres
 
 		result.ColorDifferenceSum += utils.GetColorDifference(cR, cG, cB, pR, pG, pB)
 
-		cBt := utils.BinaryThreshold(cR, cG, cB, bthreshold)
-		pBt := utils.BinaryThreshold(pR, pG, pB, bthreshold)
+		cBt := utils.BinaryThreshold(cR, cG, cB, bThreshold)
+		pBt := utils.BinaryThreshold(pR, pG, pB, bThreshold)
 		if cBt != pBt {
 			result.BinaryThresholdDifferenceSum += 1
 		}

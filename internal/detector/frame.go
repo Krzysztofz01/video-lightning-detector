@@ -86,7 +86,7 @@ func (d *frameStrikeDetector) GetDetectionPlot(frame *image.RGBA) ([2][]float64,
 				b = frame.Pix[offset+2]
 			}
 
-			if utils.BinaryThreshold(r, g, b, d.Threshold) == 0xff {
+			if utils.BinaryThreshold(r, g, b, d.Threshold) {
 				hVal[hhi] += 1
 				vVal[vhi] += 1
 			} else {
