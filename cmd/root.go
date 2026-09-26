@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/Krzysztofz01/video-lightning-detector/internal/options"
@@ -33,6 +34,8 @@ func Execute(args []string) (exitCode int) {
 			exitCode = 1
 		}
 	}()
+
+	_ = runtime.GOMAXPROCS(runtime.NumCPU())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
