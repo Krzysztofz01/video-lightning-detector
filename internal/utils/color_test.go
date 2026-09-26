@@ -48,14 +48,14 @@ func TestShouldGetColorDifference(t *testing.T) {
 }
 
 func TestShouldPerformBinaryThreshold(t *testing.T) {
-	cases := map[color.RGBA]uint8{
-		{0x00, 0x00, 0x00, 0xff}: 0x00,
-		{0xff, 0xff, 0xff, 0xff}: 0xff,
-		{50, 50, 50, 0xff}:       0x00,
-		{180, 180, 180, 0xff}:    0xff,
+	cases := map[color.RGBA]bool{
+		{0x00, 0x00, 0x00, 0xff}: false,
+		{0xff, 0xff, 0xff, 0xff}: true,
+		{50, 50, 50, 0xff}:       false,
+		{180, 180, 180, 0xff}:    true,
 	}
 
-	const threshold float64 = 0.5
+	const threshold float64 = 0.5 * 255
 	for c, expected := range cases {
 		actual := BinaryThreshold(c.R, c.G, c.B, threshold)
 
@@ -98,19 +98,38 @@ func TestShouldGetColorBrightness(t *testing.T) {
 	}
 }
 
-func TestLuminanceRangeCubicRootShouldCalculatePreciseValuesInCorrectRange(t *testing.T) {
-	const (
-		min        = 16.0 / 116.0
-		max        = 1.0
-		iterations = 10000
-		step       = (max - min) / float64(iterations)
-		delta      = 1e-11
+func TestCalculateGetColorBrightnessExactAndApproximationError(t *testing.T) {
+	var (
+		minError  float64 = math.Inf(+1)
+		maxError  float64 = math.Inf(-1)
+		meanError float64 = 0
+		counter   int     = 0
 	)
 
-	for x := min; x < max; x += step {
-		expected := math.Cbrt(x)
-		actual := luminanceRangeCubeRoot(x)
+	for r := 0; r < 256; r += 1 {
+		for g := 0; g < 256; g += 1 {
+			for b := 0; b < 256; b += 1 {
+				counter += 1
 
-		assert.InDelta(t, expected, actual, delta)
+				exact := GetColorBrightness(uint8(r), uint8(g), uint8(b))
+				approx := GetColorBrightnessApprox(uint8(r), uint8(g), uint8(b))
+				e := math.Abs(exact - approx)
+
+				meanError = meanError + (e-meanError)/float64(counter)
+
+				if minError > e {
+					minError = e
+				}
+
+				if maxError < e {
+					maxError = e
+				}
+			}
+		}
 	}
+
+	t.Logf("GetColorBrightness (exact vs approximation) error Mean=%f Min=%f Max=%f\n",
+		meanError,
+		minError,
+		maxError)
 }

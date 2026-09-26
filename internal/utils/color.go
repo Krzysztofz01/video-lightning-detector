@@ -2,7 +2,6 @@ package utils
 
 import "math"
 
-// TODO: Benchmark against previous implementation
 // Convert a RGB color to grayscale that will be represented as a value from zero to one.
 // Based on: ((float64(r) * 0.299) + (float64(g) * 0.587) + (float64(b) * 0.114)) / 255.0
 func ColorToGrayscale(r, g, b uint8) float64 {
@@ -13,26 +12,36 @@ func ColorToGrayscale(r, g, b uint8) float64 {
 func GetColorBrightness(r, g, b uint8) float64 {
 	luminance := rgbLinearLookup[r] + rgbLinearLookup[int(g)+256] + rgbLinearLookup[int(b)+512]
 	if luminance <= 0.008856 {
-		return (luminance * 903.3) / 100.0
-	} else {
-		return (math.Pow(luminance, 1.0/3.0)*116.0 - 16.0) / 100.0
-		// FIXME: The approximation with the "1e-7 problem" needs to be solved
-		//return (luminanceRangeCubeRoot(luminance)*116.0 - 16.0) / 100.0
-	}
-}
-
-func luminanceRangeCubeRoot(x float64) float64 {
-	reg := (-0.358955950652834 * x * x) + (0.934309346877746 * x) + 0.414814427166639
-
-	for i := 0; i < 3; i += 1 {
-		regp2 := reg * reg
-		reg = reg - ((regp2*reg)-x)/(3*regp2)
+		return luminance * 9.033
 	}
 
-	return reg
+	return (math.Cbrt(luminance)*116 - 16) * 0.01
 }
 
-// TODO: Benchmark against previous implementation
+// Calculate the approximation of the brightness of the RGB color that will be represented as a value from zero to one.
+// The approximation error is mean=0.000016 min=0 max=0.003071
+func GetColorBrightnessApprox(r, g, b uint8) float64 {
+	l := rgbLinearLookup[r] + rgbLinearLookup[int(g)+256] + rgbLinearLookup[int(b)+512]
+	if l <= 0.008856 {
+		return l * 9.033
+	}
+
+	// NOTE: Quadratic function based approximation
+	reg := (-0.358955950652834 * l * l) + (0.934309346877746 * l) + 0.414814427166639
+
+	// NOTE: Unrolled Newton-Raphson
+	regp2 := reg * reg
+	reg = (2*reg + l/regp2) / 3
+
+	regp2 = reg * reg
+	reg = (2*reg + l/regp2) / 3
+
+	regp2 = reg * reg
+	reg = (2*reg + l/regp2) / 3
+
+	return (reg*116 - 16) * 0.01
+}
+
 // Calculate the difference between two RGB colors that will be represented as a value from zero to one using the mean of RGB components difference.
 func GetColorDifference(aR, aG, aB, bR, bG, bB uint8) float64 {
 	diff := 0
@@ -58,13 +67,13 @@ func GetColorDifference(aR, aG, aB, bR, bG, bB uint8) float64 {
 	return float64(diff) / 765.0
 }
 
-// TODO: Benchmark against previous implemenation
 // Perform a binary threshold on a given RGB color with specfied cutoff threshold and return a uint8 represented black or white color.
-func BinaryThreshold(r, g, b uint8, t float64) uint8 {
-	if rgbLumaLookup[r]+rgbLumaLookup[int(g)+256]+rgbLumaLookup[int(b)+512] < t*255 {
-		return 0x00
+// The threshold arguments despit being a floating point number is also expected to be in the byte value range.
+func BinaryThreshold(r, g, b uint8, t float64) bool {
+	if rgbLumaLookup[r]+rgbLumaLookup[int(g)+256]+rgbLumaLookup[int(b)+512] < t {
+		return false
 	} else {
-		return 0xff
+		return true
 	}
 }
 

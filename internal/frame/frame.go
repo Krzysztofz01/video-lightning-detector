@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	BinaryThresholdParam float64 = 200.0 / 255.0
+	BinaryThresholdParam float64 = float64(uint8(200))
 )
 
 // Strucutre representing a single video frame and its calculated parameters.
